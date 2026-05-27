@@ -1,0 +1,66 @@
+import axios from 'axios'
+
+const api = axios.create({
+  baseURL: '/api/v1',
+  headers: { 'Content-Type': 'application/json' },
+})
+
+let authToken = null
+
+export function setAuthToken(token) {
+  authToken = token
+  if (token) {
+    localStorage.setItem('qera_token', token)
+  } else {
+    localStorage.removeItem('qera_token')
+    localStorage.removeItem('qera_user')
+  }
+}
+
+export function getStoredToken() {
+  return authToken || localStorage.getItem('qera_token')
+}
+
+export function setStoredUser(user) {
+  if (user) {
+    localStorage.setItem('qera_user', JSON.stringify(user))
+  } else {
+    localStorage.removeItem('qera_user')
+  }
+}
+
+export function getStoredUser() {
+  const raw = localStorage.getItem('qera_user')
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+let onUnauthorized = null
+
+export function setUnauthorizedHandler(handler) {
+  onUnauthorized = handler
+}
+
+api.interceptors.request.use((config) => {
+  const token = getStoredToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && onUnauthorized) {
+      onUnauthorized()
+    }
+    return Promise.reject(error)
+  },
+)
+
+export default api
