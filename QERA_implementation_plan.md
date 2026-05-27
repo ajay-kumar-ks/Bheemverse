@@ -11,7 +11,7 @@
 |-------|------|--------|------------|
 | P1 | Project Scaffold & Config | ✅ | 6 / 6 |
 | P2 | Database Layer | ✅ | 5 / 5 |
-| P3 | Auth Module | ⬜ | 0 / 6 |
+| P3 | Auth Module | ✅ | 6 / 6 |
 | P4 | Questions Module | ⬜ | 0 / 8 |
 | P5 | Exams Module | ⬜ | 0 / 7 |
 | P6 | Leaderboard Module | ⬜ | 0 / 4 |
@@ -57,14 +57,14 @@
 
 ## PHASE 3 — Auth Module
 **Goal:** Register, login (student + admin), JWT middleware, role dependency — all endpoints working.
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed
 
-- [ ] P3.1 — `backend/models/user_model.py`: raw SQLite CRUD — `create_user()`, `get_user_by_email()`, `get_user_by_id()`; parameterized queries only
-- [ ] P3.2 — `backend/schemas/auth_schema.py`: Pydantic v2 models — `RegisterRequest`, `LoginRequest`, `UserOut`, `TokenOut`
-- [ ] P3.3 — `backend/services/auth_service.py`: `register_user()` (unique email check → bcrypt.hash rounds=12 → INSERT), `login_user()` (fetch → bcrypt.verify → jwt.encode with exp; student=24h, admin=8h)
-- [ ] P3.4 — `backend/middlewares/auth.py`: `get_current_user` FastAPI Depends — extract Bearer → `jwt.decode` → return user dict; `backend/middlewares/role.py`: `require_admin` Depends — checks `role==admin`, raises 403 otherwise
-- [ ] P3.5 — `backend/routers/auth_router.py`: wire `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/admin/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout`; apply slowapi rate limit (10/min) on login + register
-- [ ] P3.6 — Verify: register → 201; duplicate email → 409; login → JWT token; wrong password → 401; `GET /me` with valid token → user object; `GET /me` without token → 401; admin login → role=admin in token
+- [x] P3.1 — `backend/models/user_model.py`: raw SQLite CRUD — `create_user()`, `get_user_by_email()`, `get_user_by_id()`; parameterized queries only
+- [x] P3.2 — `backend/schemas/auth_schema.py`: Pydantic v2 models — `RegisterRequest`, `LoginRequest`, `UserOut`, `TokenOut`
+- [x] P3.3 — `backend/services/auth_service.py`: `register_user()` (unique email check → bcrypt.hash rounds=12 → INSERT), `login_user()` (fetch → bcrypt.verify → jwt.encode with exp; student=24h, admin=8h)
+- [x] P3.4 — `backend/middlewares/auth.py`: `get_current_user` FastAPI Depends — extract Bearer → `jwt.decode` → return user dict; `backend/middlewares/role.py`: `require_admin` Depends — checks `role==admin`, raises 403 otherwise
+- [x] P3.5 — `backend/routers/auth_router.py`: wire `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/admin/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout`; apply slowapi rate limit (10/min) on login + register
+- [x] P3.6 — Verify: register → 201; duplicate email → 409; login → JWT token; wrong password → 401; `GET /me` with valid token → user object; `GET /me` without token → 401; admin login → role=admin in token
 
 ---
 
