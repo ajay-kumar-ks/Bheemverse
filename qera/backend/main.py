@@ -10,6 +10,7 @@ try:
     from backend.routers.health import router as health_router
     from backend.routers.question_router import router as question_router
     from backend.routers.comment_router import router as comment_router
+    from backend.routers.exam_router import router as exam_router
 except ImportError:
     from config import settings
     from database import init_db, close_db
@@ -18,6 +19,7 @@ except ImportError:
     from routers.health import router as health_router
     from routers.question_router import router as question_router
     from routers.comment_router import router as comment_router
+    from routers.exam_router import router as exam_router
 
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -55,3 +57,4 @@ app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(question_router)
 app.include_router(comment_router)
+app.include_router(exam_router)

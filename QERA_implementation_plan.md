@@ -13,7 +13,7 @@
 | P2 | Database Layer | ✅ | 5 / 5 |
 | P3 | Auth Module | ✅ | 6 / 6 |
 | P4 | Questions Module | ✅ | 8 / 8 |
-| P5 | Exams Module | ⬜ | 0 / 7 |
+| P5 | Exams Module | ✅ | 7 / 7 |
 | P6 | Leaderboard Module | ⬜ | 0 / 4 |
 | P7 | User Profile & Bookmarks | ⬜ | 0 / 5 |
 | P8 | Comments & Notifications | ⬜ | 0 / 5 |
@@ -85,15 +85,15 @@
 
 ## PHASE 5 — Exams Module
 **Goal:** Exam CRUD, attempt flow (start → timer → submit → score → leaderboard insert), result retrieval.
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed
 
-- [ ] P5.1 — `backend/models/exam_model.py`: `create_exam()`, `get_exam_by_id()` (with questions), `list_exams()`, `update_exam()`, `delete_exam()`, `create_attempt()`, `get_attempt()`, `submit_attempt()` (saves answers JSON, score, time), `get_result()`
-- [ ] P5.2 — `backend/schemas/exam_schema.py`: `ExamCreate`, `ExamOut`, `AttemptStart`, `AttemptSubmit` (attempt_id, time_taken_seconds, answers dict), `ResultOut`
-- [ ] P5.3 — `backend/services/exam_service.py`: `score_exam()` — iterate submitted answers vs correct_answer per question → compute score; enforce time constraint (time_taken_seconds ≤ duration_minutes×60 + 30s grace → reject if exceeded); determine attempt_number for this user+exam
-- [ ] P5.4 — `backend/services/leaderboard_service.py`: `insert_leaderboard_entry()` (only if attempt_number==1); `recompute_ranks()` using SQLite RANK() window function — `UPDATE leaderboard SET rank = ...` via subquery; `get_exam_leaderboard()`, `get_global_leaderboard()`
-- [ ] P5.5 — `backend/routers/exam_router.py`: wire all 10 endpoints from QERA.mem EXAMS section; `POST /generate` gated by `require_admin`
-- [ ] P5.6 — Notification trigger: on exam submit (attempt_number==1) → notify exam creator with rank; on new public exam → notify all students
-- [ ] P5.7 — Verify: create exam with 3 questions; start attempt → attempt_id returned; submit correct answers → score computed; second attempt → attempt_number=2, NOT in leaderboard; time exceeded → 422; result endpoint returns score+breakdown+rank
+- [x] P5.1 — `backend/models/exam_model.py`: `create_exam()`, `get_exam_by_id()` (with questions), `list_exams()`, `update_exam()`, `delete_exam()`, `create_attempt()`, `get_attempt()`, `submit_attempt()` (saves answers JSON, score, time), `get_result()`
+- [x] P5.2 — `backend/schemas/exam_schema.py`: `ExamCreate`, `ExamOut`, `AttemptStart`, `AttemptSubmit` (attempt_id, time_taken_seconds, answers dict), `ResultOut`
+- [x] P5.3 — `backend/services/exam_service.py`: `score_exam()` — iterate submitted answers vs correct_answer per question → compute score; enforce time constraint (time_taken_seconds ≤ duration_minutes×60 + 30s grace → reject if exceeded); determine attempt_number for this user+exam
+- [x] P5.4 — `backend/services/leaderboard_service.py`: `insert_leaderboard_entry()` (only if attempt_number==1); `recompute_ranks()` using SQLite RANK() window function — `UPDATE leaderboard SET rank = ...` via subquery; `get_exam_leaderboard()`, `get_global_leaderboard()`
+- [x] P5.5 — `backend/routers/exam_router.py`: wire all 10 endpoints from QERA.mem EXAMS section; `POST /generate` gated by `require_admin`
+- [x] P5.6 — Notification trigger: on exam submit (attempt_number==1) → notify exam creator with rank; on new public exam → notify all students
+- [x] P5.7 — Verify: create exam with 3 questions; start attempt → attempt_id returned; submit correct answers → score computed; second attempt → attempt_number=2, NOT in leaderboard; time exceeded → 422; result endpoint returns score+breakdown+rank
 
 ---
 
