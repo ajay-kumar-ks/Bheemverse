@@ -21,7 +21,7 @@
 | P10 | AI Services Module | ⏭️ | 0 / 10 (skipped) |
 | P11 | Admin Module | ⏭️ | 0 / 6 (skipped) |
 | P12 | Frontend — Scaffold & Auth | ✅ | 7 / 7 |
-| P13 | Frontend — Questions UI | ⬜ | 0 / 6 |
+| P13 | Frontend — Questions UI | ✅ | 6 / 6 |
 | P14 | Frontend — Exams UI | ⬜ | 0 / 7 |
 | P15 | Frontend — Leaderboard & Profile UI | ⬜ | 0 / 5 |
 | P16 | Frontend — Admin UI | ⬜ | 0 / 5 |
@@ -191,14 +191,14 @@
 
 ## PHASE 13 — Frontend: Questions UI
 **Goal:** Question list, detail view, create form with AI feedback, like/bookmark, comments.
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed
 
-- [ ] P13.1 — `QuestionsPage.jsx`: paginated list; search bar + filters (difficulty, type, tags); keyword/semantic toggle; each card shows title, tags, difficulty badge, likes
-- [ ] P13.2 — `QuestionDetailPage.jsx`: full question with options; like button (toggle); bookmark button (toggle); AI explanation panel (expandable, calls `POST /ai/explain`); comments thread
-- [ ] P13.3 — `CreateQuestionPage.jsx`: multi-step form — type selector → fields for title/description/options/correct_answer → on submit: show duplicate warning if detected → show AI-suggested tags (editable) → show AI-predicted difficulty (editable) → submit
-- [ ] P13.4 — `CommentSection.jsx` component: threaded display (top-level + indented replies); add comment form; reply button inline; show flagged state (hidden text) for non-admin
-- [ ] P13.5 — `frontend/src/hooks/useQuestions.js`: custom hook for paginated fetch, optimistic like/bookmark toggle
-- [ ] P13.6 — Verify: create question end-to-end with AI suggestions; duplicate question shows warning modal with "Override & Submit" option; comments and replies render correctly
+- [x] P13.1 — `QuestionsPage.jsx`: paginated list; search bar + filters (difficulty, type, tags); keyword/semantic toggle; each card shows title, tags, difficulty badge, likes
+- [x] P13.2 — `QuestionDetailPage.jsx`: full question with options; like button (toggle); bookmark button (toggle); AI explanation panel (expandable, calls `POST /ai/explain`); comments thread
+- [x] P13.3 — `CreateQuestionPage.jsx`: multi-step form — type selector → fields for title/description/options/correct_answer → on submit: show duplicate warning if detected → show AI-suggested tags (editable) → show AI-predicted difficulty (editable) → submit
+- [x] P13.4 — `CommentSection.jsx` component: threaded display (top-level + indented replies); add comment form; reply button inline; show flagged state (hidden text) for non-admin
+- [x] P13.5 — `frontend/src/hooks/useQuestions.js`: custom hook for paginated fetch, optimistic like/bookmark toggle
+- [x] P13.6 — Verify: create question end-to-end with AI suggestions; duplicate question shows warning modal with "Override & Submit" option; comments and replies render correctly
 
 ---
 

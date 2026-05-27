@@ -22,17 +22,22 @@ def _create_access_token(data: dict, expires_delta: timedelta) -> str:
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
 
 
+def _prepare_password(password: str) -> str:
+    encoded = password.encode("utf-8")[:72]
+    return encoded.decode("utf-8", "ignore")
+
+
 async def register_user(db, name: str, email: str, password: str, role: str = "student") -> dict:
     existing = await get_user_by_email(db, email)
     if existing is not None:
         raise ValueError("Email already registered")
-    password_hash = pwd_context.hash(password)
+    password_hash = pwd_context.hash(_prepare_password(password))
     return await create_user(db, name=name, email=email, password_hash=password_hash, role=role)
 
 
 async def login_user(db, email: str, password: str, is_admin: bool = False) -> dict:
     user = await get_user_by_email(db, email)
-    if user is None or not pwd_context.verify(password, user["password_hash"]):
+    if user is None or not pwd_context.verify(_prepare_password(password), user["password_hash"]):
         raise ValueError("Invalid credentials")
     if is_admin and user["role"] != "admin":
         raise PermissionError("Admin login required")

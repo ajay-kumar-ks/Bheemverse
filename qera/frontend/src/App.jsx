@@ -6,12 +6,12 @@ import AppLayout from './components/layout/AppLayout'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
+import QuestionsPage from './pages/questions/QuestionsPage'
+import QuestionDetailPage from './pages/questions/QuestionDetailPage'
+import CreateQuestionPage from './pages/questions/CreateQuestionPage'
 import { useAuth } from './context/AuthContext'
 
 const stubRoutes = [
-  { path: '/questions', title: 'Questions', description: 'Question bank list placeholder.' },
-  { path: '/questions/create', title: 'Create Question', description: 'Question creation form placeholder.' },
-  { path: '/questions/:id', title: 'Question Details', description: 'Question detail view placeholder.' },
   { path: '/exams', title: 'Exams', description: 'Exam list placeholder.' },
   { path: '/exams/create', title: 'Create Exam', description: 'Exam creation page placeholder.' },
   { path: '/exams/:id', title: 'Exam Details', description: 'Exam details page placeholder.' },
@@ -46,6 +46,9 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/questions" element={<QuestionsPage />} />
+          <Route path="/questions/:id" element={<QuestionDetailPage />} />
+          <Route path="/questions/create" element={<CreateQuestionPage />} />
           <Route path="/profile/me" element={<PageStub title="My Profile" description="Personal profile placeholder." />} />
           <Route path="/bookmarks" element={<PageStub title="Bookmarks" description="Bookmarked questions placeholder." />} />
           <Route path="/notifications" element={<PageStub title="Notifications" description="Notifications page placeholder." />} />
