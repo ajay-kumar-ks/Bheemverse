@@ -10,7 +10,11 @@ except ImportError:
     from config import settings
     from models.user_model import create_user, get_user_by_email
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(
+    schemes=["bcrypt_sha256"],
+    deprecated="auto"
+)
+
 ACCESS_TOKEN_EXPIRE_MINUTES = 24 * 60
 ADMIN_TOKEN_EXPIRE_MINUTES = 8 * 60
 
@@ -19,42 +23,81 @@ def _create_access_token(data: dict, expires_delta: timedelta) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + expires_delta
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
+
+    return jwt.encode(
+        to_encode,
+        settings.SECRET_KEY,
+        algorithm="HS256"
+    )
 
 
-def _prepare_password(password: str) -> str:
-    encoded = password.encode("utf-8")[:72]
-    return encoded.decode("utf-8", "ignore")
+async def register_user(
+    db,
+    name: str,
+    email: str,
+    password: str,
+    role: str = "student"
+) -> dict:
 
-
-async def register_user(db, name: str, email: str, password: str, role: str = "student") -> dict:
     existing = await get_user_by_email(db, email)
+
     if existing is not None:
         raise ValueError("Email already registered")
-    password_hash = pwd_context.hash(_prepare_password(password))
-    return await create_user(db, name=name, email=email, password_hash=password_hash, role=role)
+
+    password_hash = pwd_context.hash(password)
+
+    return await create_user(
+        db,
+        name=name,
+        email=email,
+        password_hash=password_hash,
+        role=role
+    )
 
 
-async def login_user(db, email: str, password: str, is_admin: bool = False) -> dict:
+async def login_user(
+    db,
+    email: str,
+    password: str,
+    is_admin: bool = False
+) -> dict:
+
     user = await get_user_by_email(db, email)
-    if user is None or not pwd_context.verify(_prepare_password(password), user["password_hash"]):
+
+    if user is None or not pwd_context.verify(password, user["password_hash"]):
         raise ValueError("Invalid credentials")
+
     if is_admin and user["role"] != "admin":
         raise PermissionError("Admin login required")
+
     return user
 
 
 def create_token_for_user(user: dict, is_admin: bool = False) -> str:
-    expires = timedelta(minutes=ADMIN_TOKEN_EXPIRE_MINUTES if is_admin else ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": str(user["id"]), "role": user["role"]}
+    expires = timedelta(
+        minutes=ADMIN_TOKEN_EXPIRE_MINUTES if is_admin else ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
+    payload = {
+        "sub": str(user["id"]),
+        "role": user["role"]
+    }
+
     return _create_access_token(payload, expires)
 
 
 def decode_token(token: str) -> dict:
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=["HS256"]
+        )
+
         if "sub" not in payload or "role" not in payload:
             raise JWTError("Invalid token payload")
+
         return payload
+
     except JWTError as exc:
         raise ValueError("Could not validate token") from exc

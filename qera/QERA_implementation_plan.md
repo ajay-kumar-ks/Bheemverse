@@ -22,7 +22,7 @@
 | P11 | Admin Module | ⏭️ | 0 / 6 (skipped) |
 | P12 | Frontend — Scaffold & Auth | ✅ | 7 / 7 |
 | P13 | Frontend — Questions UI | ✅ | 6 / 6 |
-| P14 | Frontend — Exams UI | ⬜ | 0 / 7 |
+| P14 | Frontend — Exams UI | ✅ | 7 / 7 |
 | P15 | Frontend — Leaderboard & Profile UI | ⬜ | 0 / 5 |
 | P16 | Frontend — Admin UI | ⬜ | 0 / 5 |
 | P17 | Frontend — AI Features UI | ⬜ | 0 / 5 |
@@ -204,15 +204,15 @@
 
 ## PHASE 14 — Frontend: Exams UI
 **Goal:** Exam list, detail, create, attend (timer), result page.
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed
 
-- [ ] P14.1 — `ExamsPage.jsx`: list with search, public filter; exam cards showing title, question count, duration, creator
-- [ ] P14.2 — `ExamDetailPage.jsx`: exam metadata + question preview list; "Start Exam" button → POST attempt → navigate to attend page
-- [ ] P14.3 — `CreateExamPage.jsx`: title/description/duration/marks fields; question picker (search question bank, add to exam with marks); randomize toggle; publish toggle
-- [ ] P14.4 — `AttendExamPage.jsx`: countdown timer (duration_minutes×60 seconds); question navigator; answer selector per question type (MCQ radio, true/false toggle, short answer text); auto-submit on timer=0 OR manual submit; confirm dialog on nav-away; POST /exams/{id}/submit
-- [ ] P14.5 — `ExamResultPage.jsx`: score + total; per-question breakdown (your answer vs correct answer); AI explanation per question (expandable); rank badge; link to leaderboard
-- [ ] P14.6 — `ExamLeaderboardPage.jsx` (embedded in ExamDetail and standalone): table of top scorers for that exam; highlight current user's row
-- [ ] P14.7 — Verify: timer auto-submits; refreshing attend page mid-exam retains attempt_id from state; result page shows all breakdown; second attempt allowed but not on leaderboard
+- [x] P14.1 — `ExamsPage.jsx`: list with search, public filter; exam cards showing title, question count, duration, creator
+- [x] P14.2 — `ExamDetailPage.jsx`: exam metadata + question preview list; "Start Exam" button → POST attempt → navigate to attend page
+- [x] P14.3 — `CreateExamPage.jsx`: title/description/duration/marks fields; question picker (search question bank, add to exam with marks); randomize toggle; publish toggle
+- [x] P14.4 — `AttendExamPage.jsx`: countdown timer (duration_minutes×60 seconds); question navigator; answer selector per question type (MCQ radio, true/false toggle, short answer text); auto-submit on timer=0 OR manual submit; confirm dialog on nav-away; POST /exams/{id}/submit
+- [x] P14.5 — `ExamResultPage.jsx`: score + total; per-question breakdown (your answer vs correct answer); AI explanation per question (expandable); rank badge; link to leaderboard
+- [x] P14.6 — `ExamLeaderboardPage.jsx` (embedded in ExamDetail and standalone): table of top scorers for that exam; highlight current user's row
+- [x] P14.7 — Verify: timer auto-submits; refreshing attend page mid-exam retains attempt_id from state; result page shows all breakdown; second attempt allowed but not on leaderboard
 
 ---
 

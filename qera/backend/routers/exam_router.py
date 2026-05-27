@@ -3,12 +3,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 try:
     from backend.schemas.exam_schema import ExamCreate, ExamOut, ExamUpdate, AttemptStart, AttemptSubmit, ResultOut
     from backend.services.exam_service import start_exam_attempt, submit_exam_attempt, notify_new_exam
+    from backend.services import leaderboard_service
     from backend.models import exam_model
     from backend.middlewares.auth import get_current_user
     from backend.middlewares.role import require_admin
 except ImportError:
     from schemas.exam_schema import ExamCreate, ExamOut, ExamUpdate, AttemptStart, AttemptSubmit, ResultOut
     from services.exam_service import start_exam_attempt, submit_exam_attempt, notify_new_exam
+    from services import leaderboard_service
     from models import exam_model
     from middlewares.auth import get_current_user
     from middlewares.role import require_admin
@@ -109,6 +111,12 @@ async def read_exam_result(request: Request, exam_id: int, attempt_id: int, curr
     if current_user["role"] != "admin" and attempt["user_id"] != current_user["id"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this attempt")
     return attempt
+
+
+@router.get("/{exam_id}/leaderboard")
+async def read_exam_leaderboard(request: Request, exam_id: int):
+    db = request.app.state.db
+    return await leaderboard_service.get_exam_leaderboard(db, exam_id)
 
 
 @router.post("/generate", response_model=ExamOut)

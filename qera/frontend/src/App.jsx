@@ -9,16 +9,16 @@ import DashboardPage from './pages/dashboard/DashboardPage'
 import QuestionsPage from './pages/questions/QuestionsPage'
 import QuestionDetailPage from './pages/questions/QuestionDetailPage'
 import CreateQuestionPage from './pages/questions/CreateQuestionPage'
+import ExamsPage from './pages/exams/ExamsPage'
+import ExamDetailPage from './pages/exams/ExamDetailPage'
+import CreateExamPage from './pages/exams/CreateExamPage'
+import AttendExamPage from './pages/exams/AttendExamPage'
+import ExamResultPage from './pages/exams/ExamResultPage'
+import ExamLeaderboardPage from './pages/exams/ExamLeaderboardPage'
 import { useAuth } from './context/AuthContext'
 
 const stubRoutes = [
-  { path: '/exams', title: 'Exams', description: 'Exam list placeholder.' },
-  { path: '/exams/create', title: 'Create Exam', description: 'Exam creation page placeholder.' },
-  { path: '/exams/:id', title: 'Exam Details', description: 'Exam details page placeholder.' },
-  { path: '/exams/:id/attend', title: 'Attend Exam', description: 'Exam attendance page placeholder.' },
-  { path: '/exams/:id/result/:aid', title: 'Exam Result', description: 'Exam result summary placeholder.' },
   { path: '/leaderboard', title: 'Leaderboard', description: 'Global leaderboard placeholder.' },
-  { path: '/leaderboard/exam/:id', title: 'Exam Leaderboard', description: 'Exam-specific leaderboard placeholder.' },
   { path: '/profile/:uid', title: 'Public Profile', description: 'Public profile placeholder.' },
   { path: '/bookmarks', title: 'Bookmarks', description: 'Bookmarked questions placeholder.' },
   { path: '/notifications', title: 'Notifications', description: 'Notifications page placeholder.' },
@@ -49,11 +49,15 @@ function App() {
           <Route path="/questions" element={<QuestionsPage />} />
           <Route path="/questions/:id" element={<QuestionDetailPage />} />
           <Route path="/questions/create" element={<CreateQuestionPage />} />
+          <Route path="/exams" element={<ExamsPage />} />
+          <Route path="/exams/create" element={<CreateExamPage />} />
+          <Route path="/exams/:id" element={<ExamDetailPage />} />
+          <Route path="/exams/:id/attend" element={<AttendExamPage />} />
+          <Route path="/exams/:id/result/:aid" element={<ExamResultPage />} />
+          <Route path="/leaderboard/exam/:id" element={<ExamLeaderboardPage />} />
           <Route path="/profile/me" element={<PageStub title="My Profile" description="Personal profile placeholder." />} />
           <Route path="/bookmarks" element={<PageStub title="Bookmarks" description="Bookmarked questions placeholder." />} />
           <Route path="/notifications" element={<PageStub title="Notifications" description="Notifications page placeholder." />} />
-          <Route path="/exams/:id/attend" element={<PageStub title="Attend Exam" description="Exam attendance page placeholder." />} />
-          <Route path="/exams/:id/result/:aid" element={<PageStub title="Exam Result" description="Exam result summary placeholder." />} />
         </Route>
       </Route>
 
