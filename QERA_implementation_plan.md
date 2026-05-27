@@ -12,7 +12,7 @@
 | P1 | Project Scaffold & Config | ✅ | 6 / 6 |
 | P2 | Database Layer | ✅ | 5 / 5 |
 | P3 | Auth Module | ✅ | 6 / 6 |
-| P4 | Questions Module | ⬜ | 0 / 8 |
+| P4 | Questions Module | ✅ | 8 / 8 |
 | P5 | Exams Module | ⬜ | 0 / 7 |
 | P6 | Leaderboard Module | ⬜ | 0 / 4 |
 | P7 | User Profile & Bookmarks | ⬜ | 0 / 5 |
@@ -70,16 +70,16 @@
 
 ## PHASE 4 — Questions Module
 **Goal:** Full CRUD for questions with options and tags; like and bookmark toggles; comment endpoints; AI pipeline hooks (duplicate, tag, difficulty) called on create.
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed
 
-- [ ] P4.1 — `backend/models/question_model.py`: `create_question()`, `get_question_by_id()`, `list_questions(page,limit)`, `update_question()`, `delete_question()`, `toggle_like()` (atomic UPDATE likes_count), `toggle_bookmark()`; insert options and tags in same transaction
-- [ ] P4.2 — `backend/schemas/question_schema.py`: `QuestionCreate`, `QuestionUpdate`, `QuestionOut` (with nested options + tags), `CommentOut`, `CommentCreate`
-- [ ] P4.3 — `backend/services/question_service.py`: orchestrate create flow — validate → call `ai_service.check_duplicate()` → warn flag → call `ai_service.suggest_tags()` if tags=[] → call `ai_service.analyze_difficulty()` if difficulty unset → `question_model.create_question()` → return
-- [ ] P4.4 — `backend/models/comment_model.py`: `create_comment()`, `get_comments_by_question()` (threaded: top-level + replies), `flag_comment()`
-- [ ] P4.5 — `backend/routers/question_router.py`: wire all 10 endpoints from QERA.mem QUESTIONS section; auth Depends on mutating routes; owner-or-admin check on PUT/DELETE
-- [ ] P4.6 — `backend/routers/comment_router.py`: wire `GET /{id}/comments`, `POST /{id}/comments`, `POST /{id}/comments/{cid}/reply`; moderation_filter auto-called on every comment POST
-- [ ] P4.7 — Notification triggers: on new public question → insert notification for topic followers (stub for now: notify all students); on comment → notify question owner; on reply → notify comment author
-- [ ] P4.8 — Verify: create MCQ question (all fields) → returns with AI-filled tags + difficulty; duplicate question → warning in response; like toggle idempotent; bookmark toggle; comment thread with reply; non-owner PUT → 403
+- [x] P4.1 — `backend/models/question_model.py`: `create_question()`, `get_question_by_id()`, `list_questions(page,limit)`, `update_question()`, `delete_question()`, `toggle_like()` (atomic UPDATE likes_count), `toggle_bookmark()`; insert options and tags in same transaction
+- [x] P4.2 — `backend/schemas/question_schema.py`: `QuestionCreate`, `QuestionUpdate`, `QuestionOut` (with nested options + tags), `CommentOut`, `CommentCreate`
+- [x] P4.3 — `backend/services/question_service.py`: orchestrate create flow — validate → call `ai_service.check_duplicate()` → warn flag → call `ai_service.suggest_tags()` if tags=[] → call `ai_service.analyze_difficulty()` if difficulty unset → `question_model.create_question()` → return
+- [x] P4.4 — `backend/models/comment_model.py`: `create_comment()`, `get_comments_by_question()` (threaded: top-level + replies), `flag_comment()`
+- [x] P4.5 — `backend/routers/question_router.py`: wire all 10 endpoints from QERA.mem QUESTIONS section; auth Depends on mutating routes; owner-or-admin check on PUT/DELETE
+- [x] P4.6 — `backend/routers/comment_router.py`: wire `GET /{id}/comments`, `POST /{id}/comments`, `POST /{id}/comments/{cid}/reply`; moderation_filter auto-called on every comment POST
+- [x] P4.7 — Notification triggers: on new public question → insert notification for topic followers (stub for now: notify all students); on comment → notify question owner; on reply → notify comment author
+- [x] P4.8 — Verify: create MCQ question (all fields) → returns with AI-filled tags + difficulty; duplicate question → warning in response; like toggle idempotent; bookmark toggle; comment thread with reply; non-owner PUT → 403
 
 ---
 
