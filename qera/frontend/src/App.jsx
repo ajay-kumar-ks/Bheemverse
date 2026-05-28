@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import PageStub from './components/PageStub'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import AdminRoute from './components/common/AdminRoute'
 import AppLayout from './components/layout/AppLayout'
@@ -15,14 +14,15 @@ import CreateExamPage from './pages/exams/CreateExamPage'
 import AttendExamPage from './pages/exams/AttendExamPage'
 import ExamResultPage from './pages/exams/ExamResultPage'
 import ExamLeaderboardPage from './pages/exams/ExamLeaderboardPage'
+import GlobalLeaderboardPage from './pages/leaderboard/GlobalLeaderboardPage'
+import MyProfilePage from './pages/profile/MyProfilePage'
+import PublicProfilePage from './pages/profile/PublicProfilePage'
+import BookmarksPage from './pages/bookmarks/BookmarksPage'
+import NotificationsPage from './pages/notifications/NotificationsPage'
+import AdminDashboardPage from './pages/admin/AdminDashboardPage'
+import UserManagementPage from './pages/admin/UserManagementPage'
+import ContentModerationPage from './pages/admin/ContentModerationPage'
 import { useAuth } from './context/AuthContext'
-
-const stubRoutes = [
-  { path: '/leaderboard', title: 'Leaderboard', description: 'Global leaderboard placeholder.' },
-  { path: '/profile/:uid', title: 'Public Profile', description: 'Public profile placeholder.' },
-  { path: '/bookmarks', title: 'Bookmarks', description: 'Bookmarked questions placeholder.' },
-  { path: '/notifications', title: 'Notifications', description: 'Notifications page placeholder.' },
-]
 
 function HomeRedirect() {
   const { isAuthenticated, loading } = useAuth()
@@ -55,27 +55,21 @@ function App() {
           <Route path="/exams/:id/attend" element={<AttendExamPage />} />
           <Route path="/exams/:id/result/:aid" element={<ExamResultPage />} />
           <Route path="/leaderboard/exam/:id" element={<ExamLeaderboardPage />} />
-          <Route path="/profile/me" element={<PageStub title="My Profile" description="Personal profile placeholder." />} />
-          <Route path="/bookmarks" element={<PageStub title="Bookmarks" description="Bookmarked questions placeholder." />} />
-          <Route path="/notifications" element={<PageStub title="Notifications" description="Notifications page placeholder." />} />
+          <Route path="/leaderboard" element={<GlobalLeaderboardPage />} />
+          <Route path="/profile/me" element={<MyProfilePage />} />
+          <Route path="/profile/:uid" element={<PublicProfilePage />} />
+          <Route path="/bookmarks" element={<BookmarksPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
         </Route>
       </Route>
 
       <Route element={<AdminRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/admin/*" element={<PageStub title="Admin Area" description="Admin dashboard and moderation placeholder." />} />
+          <Route path="/admin" element={<AdminDashboardPage />} />
+          <Route path="/admin/users" element={<UserManagementPage />} />
+          <Route path="/admin/moderation" element={<ContentModerationPage />} />
         </Route>
       </Route>
-
-      {stubRoutes
-        .filter((route) => !['/bookmarks', '/notifications'].includes(route.path))
-        .map((route) => (
-          <Route
-            key={route.path}
-            path={route.path}
-            element={<PageStub title={route.title} description={route.description} />}
-          />
-        ))}
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -11,6 +11,10 @@ try:
     from backend.routers.question_router import router as question_router
     from backend.routers.comment_router import router as comment_router
     from backend.routers.exam_router import router as exam_router
+    from backend.routers.leaderboard_router import router as leaderboard_router
+    from backend.routers.user_router import router as user_router
+    from backend.routers.notification_router import router as notification_router
+    from backend.routers.admin_router import router as admin_router
 except ImportError:
     from config import settings
     from database import init_db, close_db
@@ -20,6 +24,10 @@ except ImportError:
     from routers.question_router import router as question_router
     from routers.comment_router import router as comment_router
     from routers.exam_router import router as exam_router
+    from routers.leaderboard_router import router as leaderboard_router
+    from routers.user_router import router as user_router
+    from routers.notification_router import router as notification_router
+    from routers.admin_router import router as admin_router
 
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -58,3 +66,7 @@ app.include_router(auth_router)
 app.include_router(question_router)
 app.include_router(comment_router)
 app.include_router(exam_router)
+app.include_router(leaderboard_router)
+app.include_router(user_router)
+app.include_router(notification_router)
+app.include_router(admin_router)

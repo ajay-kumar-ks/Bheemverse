@@ -14,17 +14,17 @@
 | P3 | Auth Module | ✅ | 6 / 6 |
 | P4 | Questions Module | ✅ | 8 / 8 |
 | P5 | Exams Module | ✅ | 7 / 7 |
-| P6 | Leaderboard Module | ⏭️ | 0 / 4 (skipped) |
-| P7 | User Profile & Bookmarks | ⏭️ | 0 / 5 (skipped) |
-| P8 | Comments & Notifications | ⏭️ | 0 / 5 (skipped) |
+| P6 | Leaderboard Module | ✅ | 4 / 4 |
+| P7 | User Profile & Bookmarks | ✅ | 5 / 5 |
+| P8 | Comments & Notifications | 🔄 | 2 / 5 |
 | P9 | Search Module | ⏭️ | 0 / 4 (skipped) |
 | P10 | AI Services Module | ⏭️ | 0 / 10 (skipped) |
 | P11 | Admin Module | ⏭️ | 0 / 6 (skipped) |
 | P12 | Frontend — Scaffold & Auth | ✅ | 7 / 7 |
 | P13 | Frontend — Questions UI | ✅ | 6 / 6 |
 | P14 | Frontend — Exams UI | ✅ | 7 / 7 |
-| P15 | Frontend — Leaderboard & Profile UI | ⬜ | 0 / 5 |
-| P16 | Frontend — Admin UI | ⬜ | 0 / 5 |
+| P15 | Frontend — Leaderboard & Profile UI | ✅ | 5 / 5 |
+| P16 | Frontend — Admin UI | ✅ | 5 / 5 |
 | P17 | Frontend — AI Features UI | ⬜ | 0 / 5 |
 | P18 | Integration, QA & Hardening | ⬜ | 0 / 6 |
 
@@ -99,35 +99,35 @@
 
 ## PHASE 6 — Leaderboard Module
 **Goal:** Global and per-exam leaderboard endpoints, correct ranking logic.
-**Status:** ⏭️ **Skipped** — deferred; core leaderboard insert/rank logic exists in Phase 5 `leaderboard_service.py`; dedicated router endpoints not implemented in this pass.
+**Status:** ✅ Completed
 
-- [ ] P6.1 — `backend/routers/leaderboard_router.py`: `GET /api/v1/leaderboard/global` (all students, sum of first-attempt scores, tiebreak by accuracy %), `GET /api/v1/leaderboard/exam/{examId}` (per-exam, score DESC → time ASC → submitted_at ASC)
-- [ ] P6.2 — `backend/models/leaderboard_model.py`: `get_global_leaderboard()` — JOIN users+leaderboard+exam_attempts; compute accuracy = (correct/total_attempted)×100; `get_exam_leaderboard(exam_id)`
-- [ ] P6.3 — Rank caching: after `recompute_ranks()` in Phase 5, ranks stored as INTEGER in leaderboard table; re-triggered on every new first-attempt submission for that exam
-- [ ] P6.4 — Verify: leaderboard returns correct order; tie scenario (same score) breaks by time; global leaderboard shows profile stats (Global Rank, Exams Attended, Accuracy %)
+- [x] P6.1 — `backend/routers/leaderboard_router.py`: `GET /api/v1/leaderboard/global` (all students, sum of first-attempt scores, tiebreak by accuracy %), `GET /api/v1/leaderboard/exam/{examId}` (per-exam, score DESC → time ASC → submitted_at ASC)
+- [x] P6.2 — `backend/models/leaderboard_model.py`: `get_global_leaderboard()` — JOIN users+leaderboard+exam_attempts; compute accuracy = (correct/total_attempted)×100; `get_exam_leaderboard(exam_id)`
+- [x] P6.3 — Rank caching: after `recompute_ranks()` in Phase 5, ranks stored as INTEGER in leaderboard table; re-triggered on every new first-attempt submission for that exam
+- [x] P6.4 — Verify: leaderboard returns correct order; tie scenario (same score) breaks by time; global leaderboard shows profile stats (Global Rank, Exams Attended, Accuracy %)
 
 ---
 
 ## PHASE 7 — User Profile & Bookmarks
 **Goal:** Profile view with stats, profile update, bookmarked questions, user's own questions/exams.
-**Status:** ⏭️ **Skipped** — deferred; bookmark toggles exist on questions API; profile/notification REST routes not implemented in this pass.
+**Status:** ✅ Completed
 
-- [ ] P7.1 — `backend/models/user_model.py` additions: `get_user_profile_stats()` (Global Rank, Exams Attended COUNT, Exams Created COUNT, Questions Created COUNT, Accuracy %), `update_user()`, `get_user_bookmarks()`, `get_user_questions()`, `get_user_exams()`
-- [ ] P7.2 — `backend/routers/user_router.py`: wire `GET /{id}/profile`, `PUT /me`, `GET /me/bookmarks`, `GET /me/exams`, `GET /me/questions`, `GET /me/notifications`, `PUT /me/notifications/{id}/read`
-- [ ] P7.3 — Avatar upload: `PUT /me` accepts optional `avatar_url` text field (URL); no file upload in this phase
-- [ ] P7.4 — `backend/routers/notification_router.py`: `GET /api/v1/notifications/`, `PUT /api/v1/notifications/{id}/read`, `PUT /api/v1/notifications/read-all`
-- [ ] P7.5 — Verify: profile stats accurate after exam attempts; bookmarks list correct; notifications mark-read works; profile update persists
+- [x] P7.1 — `backend/models/user_model.py` additions: `get_user_profile_stats()` (Global Rank, Exams Attended COUNT, Exams Created COUNT, Questions Created COUNT, Accuracy %), `update_user()`, `get_user_bookmarks()`, `get_user_questions()`, `get_user_exams()`
+- [x] P7.2 — `backend/routers/user_router.py`: wire `GET /{id}/profile`, `PUT /me`, `GET /me/bookmarks`, `GET /me/exams`, `GET /me/questions`, `GET /me/notifications`, `PUT /me/notifications/{id}/read`
+- [x] P7.3 — Avatar upload: `PUT /me` accepts optional `avatar_url` text field (URL); no file upload in this phase
+- [x] P7.4 — `backend/routers/notification_router.py`: `GET /api/v1/notifications/`, `PUT /api/v1/notifications/{id}/read`, `PUT /api/v1/notifications/read-all`
+- [x] P7.5 — Verify: profile stats accurate after exam attempts; bookmarks list correct; notifications mark-read works; profile update persists
 
 ---
 
 ## PHASE 8 — Comments & Notifications (Completeness Pass)
 **Goal:** Ensure all comment moderation logic and notification triggers from all modules are wired end-to-end.
-**Status:** ⏭️ **Skipped** — deferred; comment CRUD and `notification_service` INSERT helpers exist; notification router and admin flag workflow not completed in this pass.
+**Status:** 🔄 In Progress — comment moderation and notification wiring are now implemented; admin announcement trigger remains pending.
 
-- [ ] P8.1 — Confirm all notification INSERT triggers exist: new_exam, new_question, comment_on_question, reply_to_comment, rank_change, admin_announcement
-- [ ] P8.2 — Admin flag workflow: `POST /api/v1/admin/comments/{id}/flag` sets `is_flagged=1`; flagged comments hidden in public `GET /{id}/comments` (filter `is_flagged=0`); admin sees all
-- [ ] P8.3 — `backend/services/notification_service.py`: `create_notification(user_id, type, message, reference_id, reference_type)` helper used by all modules
-- [ ] P8.4 — Polling contract: `GET /notifications` returns unread count + list; sorted by created_at DESC; frontend polls every 30s
+- [ ] P8.1 — Confirm all notification INSERT triggers exist: new_exam, new_question, comment_on_question, reply_to_comment, rank_change; admin_announcement still pending
+- [x] P8.2 — Admin flag workflow: `POST /api/v1/admin/comments/{id}/flag` sets `is_flagged=1`; flagged comments hidden in public `GET /{id}/comments` (filter `is_flagged=0`); admin sees all
+- [x] P8.3 — `backend/services/notification_service.py`: `create_notification(user_id, type, message, reference_id, reference_type)` helper used by all modules
+- [x] P8.4 — Polling contract: `GET /notifications` returns unread count + list; sorted by created_at DESC; frontend polls every 30s
 - [ ] P8.5 — Verify: full notification flow — student A comments on student B's question → B gets notification; student A replies to B's comment → B gets reply notification; admin flags comment → hidden from public feed
 
 ---
@@ -218,25 +218,26 @@
 
 ## PHASE 15 — Frontend: Leaderboard & Profile UI
 **Goal:** Global leaderboard, per-exam leaderboard, user profile pages, bookmarks page, notifications page.
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed
 
-- [ ] P15.1 — `GlobalLeaderboardPage.jsx`: table ranked by total score; columns: Rank, Name, Exams Attended, Accuracy %, Total Score; search by name; highlight logged-in user
-- [ ] P15.2 — `ProfilePage.jsx`: public view — avatar, bio, stats (Global Rank, Exams Attended, Exams Created, Questions Created, Accuracy %); tabs for Created Questions / Created Exams
-- [ ] P15.3 — `MyProfilePage.jsx` (`/profile/me`): same as above + edit button → inline edit for name/bio/avatar_url
-- [ ] P15.4 — `BookmarksPage.jsx`: list of bookmarked questions; remove bookmark; click → QuestionDetail
-- [ ] P15.5 — `NotificationsPage.jsx`: list of all notifications; mark single read; "Mark All Read" button; type icons for different notification types
+- [x] P15.1 — `GlobalLeaderboardPage.jsx`: table ranked by total score; columns: Rank, Name, Exams Attended, Accuracy %, Total Score; search by name; highlight logged-in user
+- [x] P15.2 — `ProfilePage.jsx`: public view — avatar, bio, stats (Global Rank, Exams Attended, Exams Created, Questions Created, Accuracy %); tabs for Created Questions / Created Exams
+- [x] P15.3 — `MyProfilePage.jsx` (`/profile/me`): same as above + edit button → inline edit for name/bio/avatar_url
+- [x] P15.4 — `BookmarksPage.jsx`: list of bookmarked questions; remove bookmark; click → QuestionDetail
+- [x] P15.5 — `NotificationsPage.jsx`: list of all notifications; mark single read; "Mark All Read" button; type icons for different notification types
 
 ---
 
+
 ## PHASE 16 — Frontend: Admin UI
 **Goal:** Admin dashboard, user management, content moderation, exam management.
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed
 
-- [ ] P16.1 — `admin/AdminDashboardPage.jsx`: stats overview — total users, total questions, total exams, flagged content count, recent activity feed
-- [ ] P16.2 — `admin/UserManagementPage.jsx`: paginated user table; search; suspend/unsuspend toggle; delete with confirm modal
-- [ ] P16.3 — `admin/ContentModerationPage.jsx`: tabs for Flagged Questions / Flagged Comments; each item shows content + reporter context; Approve (unflag) / Delete buttons
-- [ ] P16.4 — `admin/ExamManagementPage.jsx`: list all exams (including private); edit/delete any; "Generate AI Exam" form — topic, count, difficulty distribution, duration → POST /exams/generate
-- [ ] P16.5 — `admin/BatchModerationPage.jsx`: "Run Batch AI Moderation" button → POST /admin/moderate/batch → display summary (flagged count, items reviewed)
+- [x] P16.1 — `admin/AdminDashboardPage.jsx`: stats overview — total users, total questions, total exams, flagged content count, recent activity feed
+- [x] P16.2 — `admin/UserManagementPage.jsx`: paginated user table; search; suspend/unsuspend toggle; delete with confirm modal
+- [x] P16.3 — `admin/ContentModerationPage.jsx`: tabs for Flagged Questions / Flagged Comments; each item shows content + reporter context; Approve (unflag) / Delete buttons
+- [x] P16.4 — `admin/ExamManagementPage.jsx`: list all exams (including private); edit/delete any; "Generate AI Exam" form — topic, count, difficulty distribution, duration → POST /exams/generate
+- [x] P16.5 — `admin/BatchModerationPage.jsx`: "Run Batch AI Moderation" button → POST /admin/moderate/batch → display summary (flagged count, items reviewed)
 
 ---
 

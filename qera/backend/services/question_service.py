@@ -45,11 +45,21 @@ async def create_question(
     )
 
     if question['is_public']:
-        message = f"New public question created: {title}"
-        await notification_service.create_notification(db, user_id, 'question_created', message, question['id'], 'question')
+        await notify_new_question(db, question)
 
     question['duplicate_warning'] = duplicate_result if duplicate_result['is_duplicate'] else None
     return question
+
+
+async def notify_new_question(db, question: dict[str, Any]) -> None:
+    if not question.get("is_public"):
+        return
+    cursor = await db.execute("SELECT id FROM users WHERE role = 'student'")
+    rows = await cursor.fetchall()
+    for row in rows:
+        student_id = row[0]
+        message = f"New public question available: {question['title']}"
+        await notification_service.create_notification(db, student_id, "question_created", message, question['id'], "question")
 
 
 async def update_question(

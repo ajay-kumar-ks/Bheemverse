@@ -41,6 +41,20 @@ async def get_comments_by_question(db, question_id: int, include_flagged: bool =
     return _nest_comments(comments)
 
 
+async def flag_comment(db, comment_id: int) -> dict | None:
+    """Set is_flagged=1 for a comment and return the updated comment, or None if not found."""
+    await db.execute("UPDATE comments SET is_flagged = 1 WHERE id = ?", (comment_id,))
+    await db.commit()
+    cursor = await db.execute(
+        "SELECT id, question_id, user_id, parent_id, content, is_flagged, created_at FROM comments WHERE id = ?",
+        (comment_id,),
+    )
+    row = await cursor.fetchone()
+    if row is None:
+        return None
+    return _row_to_comment(row)
+
+
 def _nest_comments(flat_comments: list[dict]) -> list[dict]:
     comments_by_id = {comment["id"]: comment for comment in flat_comments}
     root_comments = []
