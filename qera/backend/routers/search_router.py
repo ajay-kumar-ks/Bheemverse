@@ -3,16 +3,14 @@ Search router for full-text search endpoints.
 Provides keyword search on questions and exams with optional semantic fallback.
 """
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Request, Query, HTTPException
 
 try:
     from backend.middlewares.auth import get_current_user
-    from backend.database import get_db
     from backend.models.search_model import keyword_search_questions, keyword_search_exams
     from backend.services.ai_service import semantic_search
 except ImportError:
     from middlewares.auth import get_current_user
-    from database import get_db
     from models.search_model import keyword_search_questions, keyword_search_exams
     from services.ai_service import semantic_search
 
@@ -21,6 +19,7 @@ router = APIRouter(prefix="/api/v1/search", tags=["search"])
 
 @router.get("/questions")
 async def search_questions(
+    request: Request,
     q: str = Query(..., min_length=1, description="Search query"),
     tags: str | None = Query(None, description="Comma-separated tag names"),
     difficulty: str | None = Query(None, regex="^(easy|medium|hard)$"),
@@ -28,8 +27,6 @@ async def search_questions(
     mode: str = Query("keyword", regex="^(keyword|semantic)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=50),
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_db),
 ):
     """
     Search questions by keyword or semantic similarity.
@@ -53,6 +50,8 @@ async def search_questions(
         "search_mode": "keyword" or "semantic"
     }
     """
+    db = request.app.state.db
+    
     # Parse tags
     tag_list = None
     if tags:
@@ -85,11 +84,10 @@ async def search_questions(
 
 @router.get("/exams")
 async def search_exams(
+    request: Request,
     q: str = Query(..., min_length=1, description="Search query"),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=50),
-    current_user: dict = Depends(get_current_user),
-    db = Depends(get_db),
 ):
     """
     Search exams by keyword on title and description.
@@ -108,6 +106,8 @@ async def search_exams(
         "total_pages": total_pages
     }
     """
+    db = request.app.state.db
+    
     result = await keyword_search_exams(
         db,
         query=q,

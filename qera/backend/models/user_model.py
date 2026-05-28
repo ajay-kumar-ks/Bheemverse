@@ -98,12 +98,12 @@ async def get_user_profile(db, user_id: int) -> Optional[dict]:
     cursor = await db.execute(
         """
         SELECT rank FROM (
-            SELECT user_id, RANK() OVER (ORDER BY SUM(l.score) DESC, AVG(CAST(l.score AS FLOAT) / NULLIF(ea.total_marks, 0) * 100) DESC) AS rank
+            SELECT l.user_id AS user_id, RANK() OVER (ORDER BY SUM(l.score) DESC, AVG(CAST(l.score AS FLOAT) / NULLIF(ea.total_marks, 0) * 100) DESC) AS rank
             FROM leaderboard l
             JOIN exam_attempts ea ON ea.id = l.attempt_id
-            GROUP BY user_id
+            GROUP BY l.user_id
         ) ranked
-        WHERE user_id = ?
+        WHERE ranked.user_id = ?
         """,
         (user_id,),
     )

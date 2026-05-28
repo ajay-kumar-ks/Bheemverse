@@ -6,7 +6,7 @@ Provides keyword search with filters and semantic fallback capability.
 try:
     from backend.models.question_model import _row_to_question
 except ImportError:
-    from question_model import _row_to_question
+    from models.question_model import _row_to_question
 
 
 async def keyword_search_questions(

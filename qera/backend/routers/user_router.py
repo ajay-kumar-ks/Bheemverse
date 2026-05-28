@@ -14,6 +14,15 @@ except ImportError:
 router = APIRouter(prefix="/api/v1", tags=["users"])
 
 
+@router.get("/users/me", response_model=UserProfileOut)
+async def read_my_profile(request: Request, current_user: dict = Depends(get_current_user)):
+    db = request.app.state.db
+    profile = await user_model.get_user_profile(db, current_user["id"])
+    if profile is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+    return profile
+
+
 @router.get("/users/{user_id}", response_model=UserProfileOut)
 async def read_user_profile(request: Request, user_id: int):
     db = request.app.state.db
