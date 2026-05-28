@@ -43,3 +43,22 @@ async def analyze_difficulty(db, title: str, description: str | None) -> dict[st
 
 async def moderation_filter(text: str) -> dict[str, Any]:
     return {'is_toxic': False, 'is_spam': False, 'reason': None}
+
+
+async def semantic_search(query: str) -> list[dict[str, Any]] | None:
+    """
+    Semantic search fallback using AI embeddings or similarity matching.
+    Currently a stub returning None (no AI integration in this phase).
+    
+    In future phases, this would:
+    - Convert query to embedding
+    - Find similar question embeddings
+    - Return ranked results by similarity score
+    
+    Args:
+        query: Natural language search query
+    
+    Returns:
+        List of question objects or None if no results
+    """
+    return None

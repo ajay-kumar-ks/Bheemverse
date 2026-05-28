@@ -15,6 +15,7 @@ try:
     from backend.routers.user_router import router as user_router
     from backend.routers.notification_router import router as notification_router
     from backend.routers.admin_router import router as admin_router
+    from backend.routers.search_router import router as search_router
 except ImportError:
     from config import settings
     from database import init_db, close_db
@@ -28,6 +29,7 @@ except ImportError:
     from routers.user_router import router as user_router
     from routers.notification_router import router as notification_router
     from routers.admin_router import router as admin_router
+    from routers.search_router import router as search_router
 
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -70,3 +72,4 @@ app.include_router(leaderboard_router)
 app.include_router(user_router)
 app.include_router(notification_router)
 app.include_router(admin_router)
+app.include_router(search_router)
