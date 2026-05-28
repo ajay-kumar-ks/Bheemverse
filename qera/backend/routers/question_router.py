@@ -22,7 +22,7 @@ async def read_questions(request: Request, page: int = 1, limit: int = 20):
 async def read_question(request: Request, question_id: int):
     db = request.app.state.db
     question = await get_question(db, question_id)
-    if question is None:
+    if question is None or question.get("is_flagged"):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
     return question
 

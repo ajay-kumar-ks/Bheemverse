@@ -24,4 +24,6 @@ async def get_current_user(request: Request) -> dict:
     user = await get_user_by_id(db, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    if user.get("is_suspended"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account suspended")
     return user

@@ -10,10 +10,11 @@ def row_to_user(row) -> Optional[dict]:
         "email": row[2],
         "password_hash": row[3],
         "role": row[4],
-        "avatar_url": row[5],
-        "bio": row[6],
-        "created_at": row[7],
-        "updated_at": row[8],
+        "is_suspended": bool(row[5]),
+        "avatar_url": row[6],
+        "bio": row[7],
+        "created_at": row[8],
+        "updated_at": row[9],
     }
 
 
@@ -32,7 +33,7 @@ async def create_user(db, name: str, email: str, password_hash: str, role: str =
 
 async def get_user_by_email(db, email: str) -> Optional[dict]:
     cursor = await db.execute(
-        "SELECT id, name, email, password_hash, role, avatar_url, bio, created_at, updated_at FROM users WHERE email = ?",
+        "SELECT id, name, email, password_hash, role, is_suspended, avatar_url, bio, created_at, updated_at FROM users WHERE email = ?",
         (email,),
     )
     row = await cursor.fetchone()
@@ -41,14 +42,14 @@ async def get_user_by_email(db, email: str) -> Optional[dict]:
 
 async def get_user_by_id(db, user_id: int) -> Optional[dict]:
     cursor = await db.execute(
-        "SELECT id, name, email, password_hash, role, avatar_url, bio, created_at, updated_at FROM users WHERE id = ?",
+        "SELECT id, name, email, password_hash, role, is_suspended, avatar_url, bio, created_at, updated_at FROM users WHERE id = ?",
         (user_id,),
     )
     row = await cursor.fetchone()
     return row_to_user(row)
 
 
-async def update_user(db, user_id: int, name: str | None = None, avatar_url: str | None = None, bio: str | None = None) -> Optional[dict]:
+async def update_user(db, user_id: int, name: str | None = None, avatar_url: str | None = None, bio: str | None = None, is_suspended: bool | None = None) -> Optional[dict]:
     current = await get_user_by_id(db, user_id)
     if current is None:
         return None
@@ -63,6 +64,9 @@ async def update_user(db, user_id: int, name: str | None = None, avatar_url: str
     if bio is not None:
         fields.append("bio = ?")
         values.append(bio)
+    if is_suspended is not None:
+        fields.append("is_suspended = ?")
+        values.append(int(is_suspended))
     if fields:
         values.append(user_id)
         await db.execute(f"UPDATE users SET {', '.join(fields)}, updated_at = datetime('now') WHERE id = ?", tuple(values))

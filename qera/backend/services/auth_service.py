@@ -67,6 +67,9 @@ async def login_user(
     if user is None or not pwd_context.verify(password, user["password_hash"]):
         raise ValueError("Invalid credentials")
 
+    if user.get("is_suspended"):
+        raise PermissionError("Account suspended")
+
     if is_admin and user["role"] != "admin":
         raise PermissionError("Admin login required")
 

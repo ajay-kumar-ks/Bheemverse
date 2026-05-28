@@ -19,7 +19,7 @@
 | P8 | Comments & Notifications | 🔄 | 2 / 5 |
 | P9 | Search Module | ⏭️ | 0 / 4 (skipped) |
 | P10 | AI Services Module | ⏭️ | 0 / 10 (skipped) |
-| P11 | Admin Module | ⏭️ | 0 / 6 (skipped) |
+| P11 | Admin Module | ✅ | 6 / 6 |
 | P12 | Frontend — Scaffold & Auth | ✅ | 7 / 7 |
 | P13 | Frontend — Questions UI | ✅ | 6 / 6 |
 | P14 | Frontend — Exams UI | ✅ | 7 / 7 |
@@ -162,14 +162,14 @@
 
 ## PHASE 11 — Admin Module
 **Goal:** All admin-only endpoints working: user management, content moderation, exam generation, report handling, batch AI moderation.
-**Status:** ⏭️ **Skipped** — deferred; `require_admin` middleware exists; `/api/v1/admin/*` router not implemented in this pass.
+**Status:** ✅ Completed
 
-- [ ] P11.1 — `backend/routers/admin_router.py`: prefix `/api/v1/admin`; all routes gated by `require_admin` Depends
-- [ ] P11.2 — User management endpoints: `GET /admin/users` (paginated list), `PUT /admin/users/{id}/suspend` (set suspended flag), `DELETE /admin/users/{id}` (soft delete or hard delete with cascade)
-- [ ] P11.3 — Content moderation endpoints: `GET /admin/questions/flagged`, `DELETE /admin/questions/{id}`, `GET /admin/comments/flagged`, `DELETE /admin/comments/{id}`, `PUT /admin/comments/{id}/unflag`
-- [ ] P11.4 — Exam management: `GET /admin/exams` (all exams including private), `POST /api/v1/exams/generate` (already in exam router, admin-gated) — wire to `exam_generator.py`
-- [ ] P11.5 — Batch AI moderation: `POST /admin/moderate/batch` — fetch all unmoderated questions/comments → run `moderation_filter` on each → auto-flag toxic content → return summary report
-- [ ] P11.6 — Verify: student token on any `/admin/*` route → 403; admin can suspend user; batch moderation processes items and returns count; flagged questions hidden from public list
+- [x] P11.1 — `backend/routers/admin_router.py`: prefix `/api/v1/admin`; all routes gated by `require_admin` Depends
+- [x] P11.2 — User management endpoints: `GET /admin/users` (paginated list), `PUT /admin/users/{id}/suspend` (set suspended flag), `DELETE /admin/users/{id}` (hard delete)
+- [x] P11.3 — Content moderation endpoints: `GET /admin/questions/flagged`, `DELETE /admin/questions/{id}`, `GET /admin/comments/flagged`, `DELETE /admin/comments/{id}`, `PUT /admin/comments/{id}/unflag`
+- [x] P11.4 — Exam management: `GET /admin/exams` (all exams including private), `POST /api/v1/exams/generate` (admin-gated) — wired through `backend/services/exam_generator.py`
+- [x] P11.5 — Batch AI moderation: `POST /admin/moderate/batch` — fetch all unmoderated questions/comments, run `moderation_filter()` on each, auto-flag toxic/spam content, return summary report
+- [x] P11.6 — Verify: student token on any `/admin/*` route → 403; admin can suspend user; batch moderation processes items and returns count; flagged questions hidden from public list
 
 ---
 

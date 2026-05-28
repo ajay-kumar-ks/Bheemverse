@@ -14,9 +14,10 @@ def _row_to_question(row) -> Optional[dict]:
         "difficulty": row[6],
         "explanation": row[7],
         "is_public": bool(row[8]),
-        "likes_count": row[9],
-        "created_at": row[10],
-        "updated_at": row[11],
+        "is_flagged": bool(row[9]),
+        "likes_count": row[10],
+        "created_at": row[11],
+        "updated_at": row[12],
     }
 
 
@@ -87,7 +88,7 @@ async def create_question(
 
 async def get_question_by_id(db, question_id: int) -> Optional[dict]:
     cursor = await db.execute(
-        "SELECT id, user_id, title, description, type, correct_answer, difficulty, explanation, is_public, likes_count, created_at, updated_at FROM questions WHERE id = ?",
+        "SELECT id, user_id, title, description, type, correct_answer, difficulty, explanation, is_public, is_flagged, likes_count, created_at, updated_at FROM questions WHERE id = ?",
         (question_id,),
     )
     row = await cursor.fetchone()
@@ -101,10 +102,10 @@ async def get_question_by_id(db, question_id: int) -> Optional[dict]:
 
 async def list_questions(db, page: int = 1, limit: int = 20, only_public: bool = True) -> list[dict]:
     offset = (page - 1) * limit
-    query = "SELECT id, user_id, title, description, type, correct_answer, difficulty, explanation, is_public, likes_count, created_at, updated_at FROM questions"
+    query = "SELECT id, user_id, title, description, type, correct_answer, difficulty, explanation, is_public, is_flagged, likes_count, created_at, updated_at FROM questions"
     params: list = []
     if only_public:
-        query += " WHERE is_public = 1"
+        query += " WHERE is_public = 1 AND is_flagged = 0"
     query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
     cursor = await db.execute(query, params)

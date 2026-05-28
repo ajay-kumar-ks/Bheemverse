@@ -3,14 +3,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 try:
     from backend.schemas.exam_schema import ExamCreate, ExamOut, ExamUpdate, AttemptStart, AttemptSubmit, ResultOut
     from backend.services.exam_service import start_exam_attempt, submit_exam_attempt, notify_new_exam
-    from backend.services import leaderboard_service
+    from backend.services import leaderboard_service, exam_generator
     from backend.models import exam_model
     from backend.middlewares.auth import get_current_user
     from backend.middlewares.role import require_admin
 except ImportError:
     from schemas.exam_schema import ExamCreate, ExamOut, ExamUpdate, AttemptStart, AttemptSubmit, ResultOut
     from services.exam_service import start_exam_attempt, submit_exam_attempt, notify_new_exam
-    from services import leaderboard_service
+    from services import leaderboard_service, exam_generator
     from models import exam_model
     from middlewares.auth import get_current_user
     from middlewares.role import require_admin
@@ -122,7 +122,7 @@ async def read_exam_leaderboard(request: Request, exam_id: int):
 @router.post("/generate", response_model=ExamOut)
 async def generate_exam(request: Request, payload: ExamCreate, current_user: dict = Depends(get_current_user), _: dict = Depends(require_admin)):
     db = request.app.state.db
-    exam = await exam_model.create_exam(
+    exam = await exam_generator.generate_exam(
         db,
         user_id=current_user["id"],
         title=payload.title,
