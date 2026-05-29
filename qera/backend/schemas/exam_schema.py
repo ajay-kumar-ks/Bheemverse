@@ -16,6 +16,8 @@ class ExamCreate(BaseModel):
     total_marks: int = Field(..., ge=1)
     is_public: Optional[bool] = True
     randomize_order: Optional[bool] = False
+    randomize_options: Optional[bool] = False
+    secure_mode: Optional[bool] = False
     questions: List[ExamQuestionCreate] = Field(..., min_items=1)
 
 
@@ -26,6 +28,8 @@ class ExamUpdate(BaseModel):
     total_marks: Optional[int] = Field(None, ge=1)
     is_public: Optional[bool] = None
     randomize_order: Optional[bool] = None
+    randomize_options: Optional[bool] = None
+    secure_mode: Optional[bool] = None
     questions: Optional[List[ExamQuestionCreate]] = None
 
 
@@ -47,6 +51,8 @@ class ExamOut(BaseModel):
     total_marks: int
     is_public: bool
     randomize_order: bool
+    randomize_options: bool
+    secure_mode: bool
     questions: List[ExamQuestionOut] = []
     created_at: str
     updated_at: str
@@ -58,6 +64,22 @@ class AttemptStart(BaseModel):
     user_id: int
     attempt_number: int
     total_marks: int
+    status: str
+    started_at: str
+    last_saved_at: str
+    answers: Dict[str, str] = {}
+    questions: List[ExamQuestionOut] = []
+
+
+class AttemptSave(BaseModel):
+    time_taken_seconds: int = Field(..., ge=0)
+    answers: Dict[int, str]
+
+    @model_validator(mode="after")
+    def ensure_answers_present(self):
+        if not self.answers:
+            raise ValueError("Answers payload cannot be empty")
+        return self
 
 
 class AttemptSubmit(BaseModel):

@@ -1,4 +1,5 @@
 import json
+import random
 from typing import Any, Dict
 
 from fastapi import HTTPException, status
@@ -46,10 +47,39 @@ async def start_exam_attempt(db, exam_id: int, user_id: int) -> dict[str, Any]:
     exam = await exam_model.get_exam_by_id(db, exam_id)
     if exam is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
-    attempt = await exam_model.create_attempt(db, exam_id, user_id)
+    attempt = await exam_model.get_latest_active_attempt(db, exam_id, user_id)
+    if attempt is not None:
+        return attempt
+
+    question_order = exam["questions"].copy()
+    if exam.get("randomize_order"):
+        random.shuffle(question_order)
+        for index, item in enumerate(question_order, start=1):
+            item["question_order"] = index
+
+    attempt = await exam_model.create_attempt(db, exam_id, user_id, question_order=question_order)
     if attempt is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not start exam attempt")
     return attempt
+
+
+async def save_exam_attempt_progress(db, attempt_id: int, user_id: int, time_taken_seconds: int, answers: dict[str, Any]) -> dict[str, Any]:
+    attempt = await exam_model.get_attempt(db, attempt_id)
+    if attempt is None or attempt["user_id"] != user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attempt not found")
+    exam = await exam_model.get_exam_by_id(db, attempt["exam_id"])
+    if exam is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
+    max_time = exam["duration_minutes"] * 60 + 30
+    if time_taken_seconds > max_time:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Time limit exceeded: {time_taken_seconds}s > allowed {max_time}s",
+        )
+    saved = await exam_model.save_attempt_progress(db, attempt_id, user_id, answers, time_taken_seconds)
+    if saved is None:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not save attempt progress")
+    return saved
 
 
 async def submit_exam_attempt(db, attempt_id: int, user_id: int, time_taken_seconds: int, answers: dict[str, Any]) -> dict[str, Any]:

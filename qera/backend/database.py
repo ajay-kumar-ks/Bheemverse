@@ -19,6 +19,11 @@ def _ensure_database_path() -> None:
 
 
 async def _execute_schema(db: aiosqlite.Connection) -> None:
+    cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1")
+    row = await cursor.fetchone()
+    if row is not None:
+        return
+
     if not os.path.exists(SCHEMA_PATH):
         raise FileNotFoundError(f"Schema file not found: {SCHEMA_PATH}")
     with open(SCHEMA_PATH, "r", encoding="utf-8") as schema_file:
@@ -49,7 +54,17 @@ async def _get_applied_migrations(db: aiosqlite.Connection) -> set[str]:
 async def _apply_migration(db: aiosqlite.Connection, name: str, path: str) -> None:
     with open(path, "r", encoding="utf-8") as migration_file:
         migration_sql = migration_file.read()
-    await db.executescript(migration_sql)
+
+    statements = [stmt.strip() for stmt in migration_sql.split(";") if stmt.strip()]
+    for statement in statements:
+        try:
+            await db.execute(statement)
+        except aiosqlite.OperationalError as exc:
+            message = str(exc).lower()
+            if "duplicate column name" in message or "already exists" in message:
+                continue
+            raise
+
     await db.execute(
         "INSERT INTO _migrations (name) VALUES (?)",
         (name,),

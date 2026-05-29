@@ -10,6 +10,15 @@ function formatTimer(seconds) {
   return `${mins}:${secs}`
 }
 
+function shuffleOptions(options = []) {
+  const shuffled = [...options]
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+
 export default function AttendExamPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -24,62 +33,121 @@ export default function AttendExamPage() {
 
   const storageKey = attemptStorageKey(id)
 
+  const getStoredAttempt = () => {
+    try {
+      const raw = localStorage.getItem(storageKey)
+      return raw ? JSON.parse(raw) : null
+    } catch {
+      return null
+    }
+  }
+
+  const saveStoredAttempt = (value) => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(value))
+    } catch {
+      // ignore storage failures
+    }
+  }
+
+  const clearStoredAttempt = () => {
+    try {
+      localStorage.removeItem(storageKey)
+    } catch {
+      // ignore storage failures
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
     let interval = null
-
-    const getStoredAttempt = () => {
-      try {
-        const raw = sessionStorage.getItem(storageKey)
-        return raw ? JSON.parse(raw) : null
-      } catch {
-        return null
-      }
-    }
-
-    const saveAttempt = (value) => sessionStorage.setItem(storageKey, JSON.stringify(value))
-    const clearStoredAttempt = () => sessionStorage.removeItem(storageKey)
 
     async function bootstrap() {
       setLoading(true)
       setError('')
       try {
-        const [examRes, stored] = await Promise.all([
-          api.get(`/exams/${id}`),
-          Promise.resolve(getStoredAttempt()),
-        ])
+        const examRes = await api.get(`/exams/${id}`)
         if (cancelled) return
 
         const examData = examRes.data
         setExam(examData)
 
-        let currentAttempt = stored
+        let currentAttempt = getStoredAttempt()
+        let attemptResponse = null
+        if (currentAttempt?.examId === Number(id)) {
+          setAttempt(currentAttempt)
+          setAnswers(currentAttempt.answers || {})
+        }
+
+        try {
+          attemptResponse = await api.get(`/exams/${id}/attempt/latest`)
+        } catch (err) {
+          if (err.response?.status !== 404) {
+            throw err
+          }
+        }
+
+        if (attemptResponse?.data) {
+          const serverAttempt = {
+            attemptId: attemptResponse.data.id,
+            examId: Number(id),
+            attemptNumber: attemptResponse.data.attempt_number,
+            startedAt: new Date(attemptResponse.data.started_at).getTime(),
+            durationMinutes: examData.duration_minutes,
+            answers: attemptResponse.data.answers || {},
+            questions: attemptResponse.data.questions || [],
+          }
+          currentAttempt = serverAttempt
+          setAttempt(serverAttempt)
+          setAnswers(serverAttempt.answers)
+          saveStoredAttempt(serverAttempt)
+        }
+
         if (!currentAttempt || currentAttempt.examId !== Number(id)) {
           const { data } = await api.post(`/exams/${id}/start`)
           currentAttempt = {
             attemptId: data.id,
             examId: Number(id),
             attemptNumber: data.attempt_number,
-            startedAt: Date.now(),
+            startedAt: new Date(data.started_at).getTime(),
             durationMinutes: examData.duration_minutes,
+            answers: data.answers || {},
+            questions: data.questions || [],
           }
-          saveAttempt(currentAttempt)
+          setAttempt(currentAttempt)
+          setAnswers(currentAttempt.answers)
+          saveStoredAttempt(currentAttempt)
         }
 
-        setAttempt(currentAttempt)
+        const questionSource = currentAttempt.questions?.length ? currentAttempt.questions : examData.questions
+        if (!questionSource?.length) {
+          setError('Unable to load exam questions.')
+          return
+        }
 
         const questionDetails = await Promise.all(
-          examData.questions.map((item) => api.get(`/questions/${item.question_id}`)),
+          questionSource.map((item) => api.get(`/questions/${item.question_id}`)),
         )
         if (cancelled) return
-        setQuestions(questionDetails.map((response) => response.data))
+        const fetchedQuestions = questionDetails.map((response) => response.data)
+        const questionMarks = Object.fromEntries(questionSource.map((item) => [item.question_id, item.marks]))
+        setQuestions(
+          examData.randomize_options ? fetchedQuestions.map((question) => ({
+            ...question,
+            marks: questionMarks[question.id] ?? question.marks ?? 1,
+            options: shuffleOptions(question.options || []),
+          })) : fetchedQuestions.map((question) => ({
+            ...question,
+            marks: questionMarks[question.id] ?? question.marks ?? 1,
+          })),
+        )
 
         const elapsed = Math.floor((Date.now() - currentAttempt.startedAt) / 1000)
         const remaining = Math.max(0, examData.duration_minutes * 60 - elapsed)
         setRemainingSeconds(remaining)
 
         if (remaining <= 0) {
-          await handleSubmit(currentAttempt, examData, answers, clearStoredAttempt, true)
+          await handleSubmit(currentAttempt, examData, currentAttempt.answers || {}, clearStoredAttempt, true)
           return
         }
 
@@ -111,17 +179,32 @@ export default function AttendExamPage() {
 
   useEffect(() => {
     if (remainingSeconds === 0 && attempt && exam) {
-      const stored = sessionStorage.getItem(storageKey)
-      if (stored) {
-        const currentAttempt = JSON.parse(stored)
-        handleSubmit(currentAttempt, exam, answers, () => sessionStorage.removeItem(storageKey), true).catch(() => {})
-      }
+      handleSubmit(attempt, exam, answers, clearStoredAttempt, true).catch(() => {})
     }
-  }, [remainingSeconds, attempt, exam, answers, storageKey])
+  }, [remainingSeconds, attempt, exam, answers])
 
   const setAnswer = (questionId, value) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }))
   }
+
+  useEffect(() => {
+    if (!attempt || !exam) return
+    const timer = setTimeout(async () => {
+      try {
+        const timeTaken = exam.duration_minutes * 60 - remainingSeconds
+        await api.patch(`/exams/attempt/${attempt.attemptId}`, {
+          time_taken_seconds: Math.max(0, timeTaken),
+          answers: Object.fromEntries(
+            Object.entries(answers).map(([question, answer]) => [String(question), answer?.toString() || '']),
+          ),
+        })
+        saveStoredAttempt({ ...attempt, answers })
+      } catch {
+        // ignore save failures for now
+      }
+    }, 1200)
+    return () => clearTimeout(timer)
+  }, [answers, attempt, exam, remainingSeconds])
 
   const handleSubmit = async (currentAttempt, examData, currentAnswers, clearFn, auto = false) => {
     if (!currentAttempt || !examData) return
@@ -150,13 +233,11 @@ export default function AttendExamPage() {
 
   const handleManualSubmit = async () => {
     if (!window.confirm('Submit your answers and finish the exam?')) return
-    const stored = sessionStorage.getItem(storageKey)
-    if (!stored) {
+    if (!attempt) {
       setError('No active attempt found.')
       return
     }
-    const attemptData = JSON.parse(stored)
-    await handleSubmit(attemptData, exam, answers, () => sessionStorage.removeItem(storageKey), false)
+    await handleSubmit(attempt, exam, answers, clearStoredAttempt, false)
   }
 
   const perQuestion = useMemo(() => {
@@ -252,7 +333,7 @@ export default function AttendExamPage() {
             <h2 className="text-lg font-semibold text-slate-900">Instructions</h2>
             <ul className="mt-4 space-y-3 text-sm text-slate-600">
               <li>Answer every question to maximize your score.</li>
-              <li>Your answers are saved only when you submit.</li>
+              <li>Your answers are saved automatically while you work.</li>
               <li>When time reaches zero, the exam submits automatically.</li>
             </ul>
           </div>

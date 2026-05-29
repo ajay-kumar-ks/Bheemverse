@@ -14,8 +14,10 @@ def _row_to_exam(row) -> Optional[dict]:
         "total_marks": row[5],
         "is_public": bool(row[6]),
         "randomize_order": bool(row[7]),
-        "created_at": row[8],
-        "updated_at": row[9],
+        "randomize_options": bool(row[8]) if len(row) > 8 else False,
+        "secure_mode": bool(row[9]) if len(row) > 9 else False,
+        "created_at": row[10] if len(row) > 10 else row[8],
+        "updated_at": row[11] if len(row) > 11 else row[9],
     }
 
 
@@ -53,11 +55,23 @@ async def create_exam(
     total_marks: int,
     is_public: bool,
     randomize_order: bool,
+    randomize_options: bool,
+    secure_mode: bool,
     questions: list[dict[str, Any]],
 ) -> dict:
     cursor = await db.execute(
-        "INSERT INTO exams (user_id, title, description, duration_minutes, total_marks, is_public, randomize_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (user_id, title, description, duration_minutes, total_marks, int(is_public), int(randomize_order)),
+        "INSERT INTO exams (user_id, title, description, duration_minutes, total_marks, is_public, randomize_order, randomize_options, secure_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            user_id,
+            title,
+            description,
+            duration_minutes,
+            total_marks,
+            int(is_public),
+            int(randomize_order),
+            int(randomize_options),
+            int(secure_mode),
+        ),
     )
     exam_id = cursor.lastrowid
     await db.commit()
@@ -74,7 +88,7 @@ async def create_exam(
 
 async def get_exam_by_id(db, exam_id: int) -> Optional[dict]:
     cursor = await db.execute(
-        "SELECT id, user_id, title, description, duration_minutes, total_marks, is_public, randomize_order, created_at, updated_at FROM exams WHERE id = ?",
+        "SELECT id, user_id, title, description, duration_minutes, total_marks, is_public, randomize_order, randomize_options, secure_mode, created_at, updated_at FROM exams WHERE id = ?",
         (exam_id,),
     )
     row = await cursor.fetchone()
@@ -87,7 +101,7 @@ async def get_exam_by_id(db, exam_id: int) -> Optional[dict]:
 
 async def list_exams(db, page: int = 1, limit: int = 20, only_public: bool = True) -> list[dict]:
     offset = (page - 1) * limit
-    query = "SELECT id, user_id, title, description, duration_minutes, total_marks, is_public, randomize_order, created_at, updated_at FROM exams"
+    query = "SELECT id, user_id, title, description, duration_minutes, total_marks, is_public, randomize_order, randomize_options, secure_mode, created_at, updated_at FROM exams"
     params: list = []
     if only_public:
         query += " WHERE is_public = 1"
@@ -110,6 +124,8 @@ async def update_exam(
     total_marks: int | None = None,
     is_public: bool | None = None,
     randomize_order: bool | None = None,
+    randomize_options: bool | None = None,
+    secure_mode: bool | None = None,
     questions: list[dict[str, Any]] | None = None,
 ) -> Optional[dict]:
     current = await get_exam_by_id(db, exam_id)
@@ -135,6 +151,12 @@ async def update_exam(
     if randomize_order is not None:
         fields.append("randomize_order = ?")
         values.append(int(randomize_order))
+    if randomize_options is not None:
+        fields.append("randomize_options = ?")
+        values.append(int(randomize_options))
+    if secure_mode is not None:
+        fields.append("secure_mode = ?")
+        values.append(int(secure_mode))
     if fields:
         values.append(exam_id)
         await db.execute(f"UPDATE exams SET {', '.join(fields)}, updated_at = datetime('now') WHERE id = ?", tuple(values))
@@ -159,7 +181,7 @@ async def delete_exam(db, exam_id: int) -> None:
 
 async def _get_attempt_row(db, attempt_id: int) -> Optional[dict]:
     cursor = await db.execute(
-        "SELECT id, exam_id, user_id, attempt_number, score, total_marks, time_taken_seconds, submitted_at, answers FROM exam_attempts WHERE id = ?",
+        "SELECT id, exam_id, user_id, attempt_number, score, total_marks, time_taken_seconds, status, started_at, last_saved_at, question_order, submitted_at, answers FROM exam_attempts WHERE id = ?",
         (attempt_id,),
     )
     row = await cursor.fetchone()
@@ -173,12 +195,16 @@ async def _get_attempt_row(db, attempt_id: int) -> Optional[dict]:
         "score": row[4],
         "total_marks": row[5],
         "time_taken_seconds": row[6],
-        "submitted_at": row[7],
-        "answers": json.loads(row[8] or "{}"),
+        "status": row[7],
+        "started_at": row[8],
+        "last_saved_at": row[9],
+        "question_order": json.loads(row[10] or "[]"),
+        "submitted_at": row[11],
+        "answers": json.loads(row[12] or "{}"),
     }
 
 
-async def create_attempt(db, exam_id: int, user_id: int) -> Optional[dict]:
+async def create_attempt(db, exam_id: int, user_id: int, question_order: list[dict[str, Any]] | None = None) -> Optional[dict]:
     cursor = await db.execute(
         "SELECT COUNT(*) FROM exam_attempts WHERE exam_id = ? AND user_id = ?",
         (exam_id, user_id),
@@ -193,12 +219,46 @@ async def create_attempt(db, exam_id: int, user_id: int) -> Optional[dict]:
     total_marks_row = await cursor.fetchone()
     total_marks = total_marks_row[0] if total_marks_row and total_marks_row[0] is not None else 0
 
+    if question_order is None:
+        cursor = await db.execute(
+            "SELECT question_id, marks, question_order FROM exam_questions WHERE exam_id = ? ORDER BY question_order",
+            (exam_id,),
+        )
+        rows = await cursor.fetchall()
+        question_order = [
+            {"question_id": row[0], "marks": row[1], "question_order": row[2]}
+            for row in rows
+        ]
+
     cursor = await db.execute(
-        "INSERT INTO exam_attempts (exam_id, user_id, attempt_number, total_marks, answers) VALUES (?, ?, ?, ?, ?)",
-        (exam_id, user_id, attempt_number, total_marks, json.dumps({})),
+        "INSERT INTO exam_attempts (exam_id, user_id, attempt_number, total_marks, status, started_at, last_saved_at, question_order, answers) VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?, ?)",
+        (exam_id, user_id, attempt_number, total_marks, 'in_progress', json.dumps(question_order), json.dumps({})),
     )
     await db.commit()
     return await get_attempt(db, cursor.lastrowid)
+
+
+async def get_latest_active_attempt(db, exam_id: int, user_id: int) -> Optional[dict]:
+    cursor = await db.execute(
+        "SELECT id FROM exam_attempts WHERE exam_id = ? AND user_id = ? AND status = 'in_progress' ORDER BY started_at DESC LIMIT 1",
+        (exam_id, user_id),
+    )
+    row = await cursor.fetchone()
+    if row is None:
+        return None
+    return await get_attempt(db, row[0])
+
+
+async def save_attempt_progress(db, attempt_id: int, user_id: int, answers: dict[str, Any], time_taken_seconds: int) -> Optional[dict]:
+    attempt = await get_attempt(db, attempt_id)
+    if attempt is None or attempt["user_id"] != user_id or attempt["status"] != "in_progress":
+        return None
+    await db.execute(
+        "UPDATE exam_attempts SET answers = ?, time_taken_seconds = ?, last_saved_at = datetime('now') WHERE id = ?",
+        (json.dumps(answers), time_taken_seconds, attempt_id),
+    )
+    await db.commit()
+    return await get_attempt(db, attempt_id)
 
 
 async def get_attempt(db, attempt_id: int) -> Optional[dict]:
@@ -210,7 +270,7 @@ async def submit_attempt(db, attempt_id: int, user_id: int, score: int, time_tak
     if attempt is None or attempt["user_id"] != user_id:
         return None
     await db.execute(
-        "UPDATE exam_attempts SET score = ?, time_taken_seconds = ?, answers = ?, submitted_at = datetime('now') WHERE id = ?",
+        "UPDATE exam_attempts SET score = ?, time_taken_seconds = ?, answers = ?, status = 'submitted', last_saved_at = datetime('now'), submitted_at = datetime('now') WHERE id = ?",
         (score, time_taken_seconds, json.dumps(answers), attempt_id),
     )
     await db.commit()

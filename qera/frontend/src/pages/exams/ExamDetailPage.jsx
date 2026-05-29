@@ -11,16 +11,39 @@ export default function ExamDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [starting, setStarting] = useState(false)
+  const [attempt, setAttempt] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       setLoading(true)
       setError('')
+      setAttempt(null)
       try {
         const { data } = await api.get(`/exams/${id}`)
-        if (!cancelled) {
-          setExam(data)
+        if (cancelled) return
+        setExam(data)
+        try {
+          const attemptResponse = await api.get(`/exams/${id}/attempt/latest`)
+          if (!cancelled) {
+            const active = {
+              attemptId: attemptResponse.data.id,
+              attemptNumber: attemptResponse.data.attempt_number,
+              startedAt: new Date(attemptResponse.data.started_at).getTime(),
+              durationMinutes: data.duration_minutes,
+              questions: attemptResponse.data.questions || [],
+            }
+            setAttempt(active)
+            saveAttempt(active)
+          }
+        } catch (err) {
+          if (err.response?.status !== 404 && err.response?.status !== 401 && err.response?.status !== 403) {
+            throw err
+          }
+          const stored = storedAttempt()
+          if (!cancelled && stored?.examId === Number(id)) {
+            setAttempt(stored)
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -38,10 +61,26 @@ export default function ExamDetailPage() {
 
   const storedAttempt = () => {
     try {
-      const raw = sessionStorage.getItem(attemptStorageKey(id))
+      const raw = localStorage.getItem(attemptStorageKey(id))
       return raw ? JSON.parse(raw) : null
     } catch {
       return null
+    }
+  }
+
+  const saveAttempt = (attemptData) => {
+    try {
+      localStorage.setItem(attemptStorageKey(id), JSON.stringify(attemptData))
+    } catch {
+      // ignore storage failures
+    }
+  }
+
+  const clearAttempt = () => {
+    try {
+      localStorage.removeItem(attemptStorageKey(id))
+    } catch {
+      // ignore storage failures
     }
   }
 
@@ -54,10 +93,11 @@ export default function ExamDetailPage() {
         attemptId: data.id,
         examId: Number(id),
         attemptNumber: data.attempt_number,
-        startedAt: Date.now(),
+        startedAt: new Date(data.started_at).getTime(),
         durationMinutes: exam.duration_minutes,
+        questions: data.questions || [],
       }
-      sessionStorage.setItem(attemptStorageKey(id), JSON.stringify(payload))
+      saveAttempt(payload)
       navigate(`/exams/${id}/attend`)
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to start exam.')
@@ -74,8 +114,6 @@ export default function ExamDetailPage() {
   if (error) return <div className="mx-auto max-w-4xl px-4 py-8 text-sm text-rose-600">{error}</div>
   if (!exam) return null
 
-  const attempt = storedAttempt()
-
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -85,17 +123,21 @@ export default function ExamDetailPage() {
             <p className="mt-3 text-slate-600">{exam.description || 'No description provided.'}</p>
           </div>
           <div className="space-y-2 text-right text-sm text-slate-500">
-            <div>{exam.questions.length} questions</div>
+            <div>{exam.questions.length || (exam.secure_mode ? 'Hidden' : 0)} questions</div>
             <div>{exam.duration_minutes} minutes</div>
             <div>{exam.total_marks} total marks</div>
             <div>{exam.is_public ? 'Public exam' : 'Private exam'}</div>
+            {exam.randomize_options ? <div>Options randomized</div> : null}
+            {exam.secure_mode ? <div>Secure mode enabled</div> : null}
           </div>
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
             <h2 className="text-lg font-semibold text-slate-900">Exam content</h2>
-            <p className="mt-3 text-sm text-slate-600">This exam includes the questions listed below. When you start, the timer begins immediately.</p>
+            <p className="mt-3 text-sm text-slate-600">
+              {exam.secure_mode ? 'This exam is in secure mode. Question previews are hidden until you start the attempt.' : 'This exam includes the questions listed below. When you start, the timer begins immediately.'}
+            </p>
           </div>
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
             <h2 className="text-lg font-semibold text-slate-900">Your progress</h2>

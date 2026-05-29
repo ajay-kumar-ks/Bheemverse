@@ -69,8 +69,8 @@ CREATE TABLE IF NOT EXISTS exams (
     duration_minutes INTEGER NOT NULL DEFAULT 30,
     total_marks INTEGER NOT NULL DEFAULT 0,
     is_public INTEGER NOT NULL DEFAULT 1,
-    randomize_order INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    randomize_order INTEGER NOT NULL DEFAULT 0,    randomize_options INTEGER NOT NULL DEFAULT 0,
+    secure_mode INTEGER NOT NULL DEFAULT 0,    created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -94,6 +94,10 @@ CREATE TABLE IF NOT EXISTS exam_attempts (
     score INTEGER NOT NULL DEFAULT 0,
     total_marks INTEGER NOT NULL DEFAULT 0,
     time_taken_seconds INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'in_progress',
+    started_at TEXT NOT NULL DEFAULT (datetime('now')),
+    last_saved_at TEXT NOT NULL DEFAULT (datetime('now')),
+    question_order TEXT NOT NULL DEFAULT '[]',
     submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
     answers TEXT NOT NULL,
     FOREIGN KEY(exam_id) REFERENCES exams(id) ON DELETE CASCADE,

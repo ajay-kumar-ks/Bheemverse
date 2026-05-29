@@ -14,6 +14,8 @@ export default function CreateExamPage() {
     duration_minutes: 20,
     is_public: true,
     randomize_order: false,
+    randomize_options: false,
+    secure_mode: false,
   })
   const [search, setSearch] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -98,6 +100,8 @@ export default function CreateExamPage() {
         total_marks: totalMarks,
         is_public: form.is_public,
         randomize_order: form.randomize_order,
+        randomize_options: form.randomize_options,
+        secure_mode: form.secure_mode,
         questions: selected.map((item, index) => ({
           question_id: item.question_id,
           marks: item.marks,
@@ -181,6 +185,24 @@ export default function CreateExamPage() {
                 className="h-4 w-4 rounded border-slate-300 text-indigo-600"
               />
               Randomize question order
+            </label>
+            <label className="flex items-center gap-3 rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm">
+              <input
+                type="checkbox"
+                checked={form.randomize_options}
+                onChange={(e) => handleChange('randomize_options', e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+              />
+              Randomize question options
+            </label>
+            <label className="flex items-center gap-3 rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm">
+              <input
+                type="checkbox"
+                checked={form.secure_mode}
+                onChange={(e) => handleChange('secure_mode', e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-indigo-600"
+              />
+              Secure exam mode
             </label>
           </div>
 
