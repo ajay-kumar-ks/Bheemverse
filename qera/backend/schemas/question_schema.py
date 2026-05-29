@@ -52,6 +52,7 @@ class QuestionOptionOut(BaseModel):
 class QuestionOut(BaseModel):
     id: int
     user_id: int
+    author_name: str
     title: str
     description: Optional[str] = None
     type: str
@@ -60,6 +61,7 @@ class QuestionOut(BaseModel):
     explanation: Optional[str] = None
     is_public: bool
     likes_count: int
+    liked: bool = False
     tags: List[TagOut] = []
     options: List[QuestionOptionOut] = []
     created_at: str

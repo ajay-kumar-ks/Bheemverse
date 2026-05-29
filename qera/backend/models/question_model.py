@@ -18,6 +18,8 @@ def _row_to_question(row) -> Optional[dict]:
         "likes_count": row[10],
         "created_at": row[11],
         "updated_at": row[12],
+        "author_name": row[13],
+        "liked": bool(row[14]),
     }
 
 
@@ -86,10 +88,11 @@ async def create_question(
     return await get_question_by_id(db, question_id)
 
 
-async def get_question_by_id(db, question_id: int) -> Optional[dict]:
+async def get_question_by_id(db, question_id: int, current_user_id: int | None = None) -> Optional[dict]:
+    current_user_id = current_user_id if current_user_id is not None else -1
     cursor = await db.execute(
-        "SELECT id, user_id, title, description, type, correct_answer, difficulty, explanation, is_public, is_flagged, likes_count, created_at, updated_at FROM questions WHERE id = ?",
-        (question_id,),
+        "SELECT q.id, q.user_id, q.title, q.description, q.type, q.correct_answer, q.difficulty, q.explanation, q.is_public, q.is_flagged, q.likes_count, q.created_at, q.updated_at, u.name, EXISTS(SELECT 1 FROM question_likes l WHERE l.user_id = ? AND l.question_id = q.id) AS liked FROM questions q JOIN users u ON u.id = q.user_id WHERE q.id = ?",
+        (current_user_id, question_id),
     )
     row = await cursor.fetchone()
     question = _row_to_question(row)
@@ -100,13 +103,14 @@ async def get_question_by_id(db, question_id: int) -> Optional[dict]:
     return question
 
 
-async def list_questions(db, page: int = 1, limit: int = 20, only_public: bool = True) -> list[dict]:
+async def list_questions(db, page: int = 1, limit: int = 20, only_public: bool = True, current_user_id: int | None = None) -> list[dict]:
+    current_user_id = current_user_id if current_user_id is not None else -1
     offset = (page - 1) * limit
-    query = "SELECT id, user_id, title, description, type, correct_answer, difficulty, explanation, is_public, is_flagged, likes_count, created_at, updated_at FROM questions"
-    params: list = []
+    query = "SELECT q.id, q.user_id, q.title, q.description, q.type, q.correct_answer, q.difficulty, q.explanation, q.is_public, q.is_flagged, q.likes_count, q.created_at, q.updated_at, u.name, EXISTS(SELECT 1 FROM question_likes l WHERE l.user_id = ? AND l.question_id = q.id) AS liked FROM questions q JOIN users u ON u.id = q.user_id"
+    params: list = [current_user_id]
     if only_public:
-        query += " WHERE is_public = 1 AND is_flagged = 0"
-    query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        query += " WHERE q.is_public = 1 AND q.is_flagged = 0"
+    query += " ORDER BY q.created_at DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
     cursor = await db.execute(query, params)
     rows = await cursor.fetchall()
@@ -186,7 +190,22 @@ async def delete_question(db, question_id: int) -> None:
     await db.commit()
 
 
-async def increment_like(db, question_id: int) -> Optional[dict]:
+async def add_like(db, user_id: int, question_id: int) -> Optional[dict]:
+    question = await get_question_by_id(db, question_id)
+    if question is None:
+        return None
+
+    cursor = await db.execute(
+        "SELECT 1 FROM question_likes WHERE user_id = ? AND question_id = ?",
+        (user_id, question_id),
+    )
+    if await cursor.fetchone():
+        return question
+
+    await db.execute(
+        "INSERT INTO question_likes (user_id, question_id) VALUES (?, ?)",
+        (user_id, question_id),
+    )
     await db.execute("UPDATE questions SET likes_count = likes_count + 1 WHERE id = ?", (question_id,))
     await db.commit()
     return await get_question_by_id(db, question_id)

@@ -90,20 +90,20 @@ async def update_question(
     )
 
 
-async def get_question(db, question_id: int) -> dict[str, Any] | None:
-    return await question_model.get_question_by_id(db, question_id)
+async def get_question(db, question_id: int, current_user_id: int | None = None) -> dict[str, Any] | None:
+    return await question_model.get_question_by_id(db, question_id, current_user_id=current_user_id)
 
 
-async def list_questions(db, page: int = 1, limit: int = 20) -> list[dict[str, Any]]:
-    return await question_model.list_questions(db, page=page, limit=limit, only_public=True)
+async def list_questions(db, page: int = 1, limit: int = 20, current_user_id: int | None = None) -> list[dict[str, Any]]:
+    return await question_model.list_questions(db, page=page, limit=limit, only_public=True, current_user_id=current_user_id)
 
 
 async def delete_question(db, question_id: int) -> None:
     await question_model.delete_question(db, question_id)
 
 
-async def like_question(db, question_id: int) -> dict[str, Any] | None:
-    return await question_model.increment_like(db, question_id)
+async def like_question(db, question_id: int, user_id: int) -> dict[str, Any] | None:
+    return await question_model.add_like(db, user_id, question_id)
 
 
 async def toggle_bookmark(db, user_id: int, question_id: int) -> dict[str, Any]:

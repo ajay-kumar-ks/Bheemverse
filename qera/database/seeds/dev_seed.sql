@@ -1,7 +1,7 @@
 BEGIN TRANSACTION;
 
 INSERT INTO users (name, email, password_hash, role, avatar_url, bio) VALUES
-('Admin One', 'admin1@example.com', '$2b$12$CHAa65lgj8WVkfkG5Hlhw.CIu4OLUjcrsPDy33WU8ZJfv/lndDJ/m', 'admin', NULL, 'Platform administrator.'),
+('Admin', 'admin@admin.com', '$bcrypt-sha256$v=2,t=2b,r=12$g.VNdmaBl6XYPcw/ktEPzO$0mXUXus.9IDi7B1diRQYrccAHssMk5m', 'admin', NULL, 'Platform administrator.'),
 ('Admin Two', 'admin2@example.com', '$2b$12$cQyWNezYmP5lxowZxHKtAOvf/u33nrf4lxpFzFfeBWJwUjCjHTfc6', 'admin', NULL, 'Platform administrator.'),
 ('Student One', 'student1@example.com', '$2b$12$11bOKrayPO0MU8hWGEnaseq92UjQ2Vi6Wl/x/8bHT.i6jxs1xKUEq', 'student', NULL, 'Aspiring exam taker.'),
 ('Student Two', 'student2@example.com', '$2b$12$VkvV2xaWD1cPLXefTBE4G.xOAsudlzQW1yHZmSCXbKU8xvGb0RwPu', 'student', NULL, 'Study group member.'),

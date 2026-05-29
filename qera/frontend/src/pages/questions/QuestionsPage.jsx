@@ -12,7 +12,6 @@ export default function QuestionsPage() {
   const [difficulty, setDifficulty] = useState('all')
   const [type, setType] = useState('all')
   const [mode, setMode] = useState('keyword')
-  const [likedMap, setLikedMap] = useState({})
   const [bookmarkMap, setBookmarkMap] = useState({})
 
   const filtered = useMemo(() => {
@@ -27,9 +26,11 @@ export default function QuestionsPage() {
   }, [items, search, difficulty, type])
 
   const toggleLike = async (id) => {
-    const shouldLike = !likedMap[id]
-    setLikedMap((prev) => ({ ...prev, [id]: shouldLike }))
-    await optimisticLikeToggle(id, shouldLike)
+    const question = items.find((q) => q.id === id)
+    if (!question || question.liked) {
+      return
+    }
+    await optimisticLikeToggle(id, true)
   }
 
   const toggleBookmark = async (id) => {
@@ -106,6 +107,7 @@ export default function QuestionsPage() {
             <Link to={`/questions/${q.id}`} className="text-lg font-semibold text-slate-900 hover:text-indigo-700">
               {q.title}
             </Link>
+            <p className="mt-2 text-sm text-slate-500">By {q.author_name}</p>
             <p className="mt-2 line-clamp-2 text-sm text-slate-600">{q.description || 'No description.'}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium capitalize text-indigo-700">
@@ -125,7 +127,7 @@ export default function QuestionsPage() {
                 type="button"
                 onClick={() => toggleLike(q.id)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                  likedMap[q.id] ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'
+                  q.liked ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'
                 }`}
               >
                 ❤ {q.likes_count}

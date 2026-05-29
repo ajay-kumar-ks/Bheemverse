@@ -36,7 +36,11 @@ export default function useQuestions(initialLimit = 12) {
       setItems((prev) =>
         prev.map((q) =>
           q.id === questionId
-            ? { ...q, likes_count: Math.max(0, q.likes_count + (shouldLike ? 1 : -1)) }
+            ? {
+                ...q,
+                liked: shouldLike,
+                likes_count: Math.max(0, q.likes_count + (shouldLike ? 1 : -1)),
+              }
             : q,
         ),
       )

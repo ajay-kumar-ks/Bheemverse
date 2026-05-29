@@ -10,7 +10,6 @@ export default function QuestionDetailPage() {
   const [error, setError] = useState('')
   const [showExplanation, setShowExplanation] = useState(false)
   const [aiExplanation, setAiExplanation] = useState('')
-  const [liked, setLiked] = useState(false)
   const [bookmarked, setBookmarked] = useState(false)
 
   useEffect(() => {
@@ -30,20 +29,13 @@ export default function QuestionDetailPage() {
   }, [id])
 
   const onLike = async () => {
-    if (!question) return
-    if (liked) {
-      setLiked(false)
-      setQuestion((prev) => ({ ...prev, likes_count: Math.max(0, prev.likes_count - 1) }))
-      return
-    }
-    setLiked(true)
-    setQuestion((prev) => ({ ...prev, likes_count: prev.likes_count + 1 }))
+    if (!question || question.liked) return
+    setQuestion((prev) => ({ ...prev, liked: true, likes_count: prev.likes_count + 1 }))
     try {
       const { data } = await api.post(`/questions/${id}/like`)
       setQuestion((prev) => ({ ...prev, ...data }))
     } catch {
-      setLiked(false)
-      setQuestion((prev) => ({ ...prev, likes_count: Math.max(0, prev.likes_count - 1) }))
+      setQuestion((prev) => ({ ...prev, liked: false, likes_count: Math.max(0, prev.likes_count - 1) }))
     }
   }
 
@@ -86,6 +78,7 @@ export default function QuestionDetailPage() {
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
       <article className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-bold text-slate-900">{question.title}</h1>
+        <p className="mt-2 text-sm text-slate-500">By {question.author_name}</p>
         <p className="mt-2 text-slate-600">{question.description}</p>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -118,7 +111,7 @@ export default function QuestionDetailPage() {
             type="button"
             onClick={onLike}
             className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
-              liked ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'
+              question.liked ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-700'
             }`}
           >
             ❤ {question.likes_count}

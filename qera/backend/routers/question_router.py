@@ -1,27 +1,28 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from typing import Optional
 
 try:
     from backend.schemas.question_schema import QuestionCreate, QuestionOut, QuestionUpdate
     from backend.services.question_service import create_question, delete_question, get_question, list_questions, like_question, toggle_bookmark, update_question
-    from backend.middlewares.auth import get_current_user
+    from backend.middlewares.auth import get_current_user, get_current_user_optional
 except ImportError:
     from schemas.question_schema import QuestionCreate, QuestionOut, QuestionUpdate
     from services.question_service import create_question, delete_question, get_question, list_questions, like_question, toggle_bookmark, update_question
-    from middlewares.auth import get_current_user
+    from middlewares.auth import get_current_user, get_current_user_optional
 
 router = APIRouter(prefix="/api/v1/questions", tags=["questions"])
 
 
 @router.get("/", response_model=list[QuestionOut])
-async def read_questions(request: Request, page: int = 1, limit: int = 20):
+async def read_questions(request: Request, page: int = 1, limit: int = 20, current_user: dict | None = Depends(get_current_user_optional)):
     db = request.app.state.db
-    return await list_questions(db, page=page, limit=limit)
+    return await list_questions(db, page=page, limit=limit, current_user_id=current_user and current_user.get("id"))
 
 
 @router.get("/{question_id}", response_model=QuestionOut)
-async def read_question(request: Request, question_id: int):
+async def read_question(request: Request, question_id: int, current_user: dict | None = Depends(get_current_user_optional)):
     db = request.app.state.db
-    question = await get_question(db, question_id)
+    question = await get_question(db, question_id, current_user_id=current_user and current_user.get("id"))
     if question is None or question.get("is_flagged"):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
     return question
@@ -85,9 +86,9 @@ async def remove_question(request: Request, question_id: int, current_user: dict
 
 
 @router.post("/{question_id}/like")
-async def like_question_endpoint(request: Request, question_id: int):
+async def like_question_endpoint(request: Request, question_id: int, current_user: dict = Depends(get_current_user)):
     db = request.app.state.db
-    question = await like_question(db, question_id)
+    question = await like_question(db, question_id, current_user["id"])
     if question is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
     return question
