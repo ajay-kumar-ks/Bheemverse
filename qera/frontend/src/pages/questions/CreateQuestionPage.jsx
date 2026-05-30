@@ -56,11 +56,14 @@ export default function CreateQuestionPage() {
     correct_answer: '',
     difficulty: '',
     explanation: '',
+    image_url: '',
+    media_url: '',
+    attachment_url: '',
     is_public: true,
     tags: [],
     options: [
-      { option_text: '', option_order: 1 },
-      { option_text: '', option_order: 2 },
+      { option_text: '', option_order: 1, image_url: '' },
+      { option_text: '', option_order: 2, image_url: '' },
     ],
   })
 
@@ -84,10 +87,18 @@ export default function CreateQuestionPage() {
     })
   }
 
+  const updateOptionImage = (index, value) => {
+    setForm((prev) => {
+      const next = [...prev.options]
+      next[index] = { ...next[index], image_url: value }
+      return { ...prev, options: next }
+    })
+  }
+
   const addOption = () => {
     setForm((prev) => ({
       ...prev,
-      options: [...prev.options, { option_text: '', option_order: prev.options.length + 1 }],
+      options: [...prev.options, { option_text: '', option_order: prev.options.length + 1, image_url: '' }],
     }))
   }
 
@@ -97,7 +108,7 @@ export default function CreateQuestionPage() {
         ...opt,
         option_order: idx + 1,
       }))
-      return { ...prev, options: next.length ? next : [{ option_text: '', option_order: 1 }]}
+      return { ...prev, options: next.length ? next : [{ option_text: '', option_order: 1, image_url: '' }]}
     })
   }
 
@@ -117,12 +128,15 @@ export default function CreateQuestionPage() {
     correct_answer: form.correct_answer.trim(),
     difficulty: form.difficulty || null,
     explanation: form.explanation.trim() || null,
+    image_url: form.image_url.trim() || null,
+    media_url: form.media_url.trim() || null,
+    attachment_url: form.attachment_url.trim() || null,
     is_public: form.is_public,
     tags: form.tags,
     options: isMCQ
       ? form.options
           .filter((o) => o.option_text.trim())
-          .map((o, idx) => ({ option_text: o.option_text.trim(), option_order: idx + 1 }))
+          .map((o, idx) => ({ option_text: o.option_text.trim(), option_order: idx + 1, image_url: o.image_url?.trim() || null }))
       : [],
   })
 
@@ -244,6 +258,35 @@ export default function CreateQuestionPage() {
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               />
             </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Question image URL</label>
+                <input
+                  value={form.image_url}
+                  onChange={(e) => updateForm('image_url', e.target.value)}
+                  placeholder="https://..."
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Media URL</label>
+                <input
+                  value={form.media_url}
+                  onChange={(e) => updateForm('media_url', e.target.value)}
+                  placeholder="Video/audio link"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700">Attachment URL</label>
+                <input
+                  value={form.attachment_url}
+                  onChange={(e) => updateForm('attachment_url', e.target.value)}
+                  placeholder="PDF or file link"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                />
+              </div>
+            </div>
             <div>
               <label className="block text-sm font-medium text-slate-700">Correct answer</label>
               <input
@@ -262,17 +305,25 @@ export default function CreateQuestionPage() {
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-slate-700">Options</label>
                 {form.options.map((opt, idx) => (
-                  <div key={idx} className="flex gap-2">
+                  <div key={idx} className="grid gap-2 rounded-xl border border-slate-100 bg-slate-50 p-3 sm:grid-cols-[1fr_1fr_auto]">
                     <input
                       value={opt.option_text}
                       onChange={(e) => updateOption(idx, e.target.value)}
                       placeholder={`Option ${idx + 1}`}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                      aria-label={`Option ${idx + 1} text`}
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    />
+                    <input
+                      value={opt.image_url || ''}
+                      onChange={(e) => updateOptionImage(idx, e.target.value)}
+                      placeholder="Optional option image URL"
+                      aria-label={`Option ${idx + 1} image URL`}
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
                     />
                     <button
                       type="button"
                       onClick={() => removeOption(idx)}
-                      className="rounded-lg border border-slate-300 px-3 text-xs"
+                      className="rounded-lg border border-slate-300 px-3 text-xs hover:bg-white"
                     >
                       Remove
                     </button>

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, constr, validator
 class QuestionOption(BaseModel):
     option_text: str = Field(..., min_length=1)
     option_order: int = Field(..., ge=1)
+    image_url: Optional[str] = None
 
 
 class QuestionCreate(BaseModel):
@@ -15,6 +16,9 @@ class QuestionCreate(BaseModel):
     correct_answer: Optional[str] = None
     difficulty: Optional[str] = Field(None, pattern='^(easy|medium|hard)$')
     explanation: Optional[str] = None
+    image_url: Optional[str] = None
+    media_url: Optional[str] = None
+    attachment_url: Optional[str] = None
     is_public: Optional[bool] = True
     tags: Optional[List[constr(min_length=1, max_length=50)]] = []
     options: Optional[List[QuestionOption]] = []
@@ -33,6 +37,9 @@ class QuestionUpdate(BaseModel):
     correct_answer: Optional[str] = None
     difficulty: Optional[str] = Field(None, pattern='^(easy|medium|hard)$')
     explanation: Optional[str] = None
+    image_url: Optional[str] = None
+    media_url: Optional[str] = None
+    attachment_url: Optional[str] = None
     is_public: Optional[bool] = None
     tags: Optional[List[constr(min_length=1, max_length=50)]] = None
     options: Optional[List[QuestionOption]] = None
@@ -47,6 +54,7 @@ class QuestionOptionOut(BaseModel):
     id: int
     option_text: str
     option_order: int
+    image_url: Optional[str] = None
 
 
 class QuestionOut(BaseModel):
@@ -59,9 +67,13 @@ class QuestionOut(BaseModel):
     correct_answer: Optional[str] = None
     difficulty: str
     explanation: Optional[str] = None
+    image_url: Optional[str] = None
+    media_url: Optional[str] = None
+    attachment_url: Optional[str] = None
     is_public: bool
     likes_count: int
     liked: bool = False
+    bookmarked: bool = False
     tags: List[TagOut] = []
     options: List[QuestionOptionOut] = []
     created_at: str

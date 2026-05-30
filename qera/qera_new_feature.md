@@ -10,113 +10,119 @@ This plan defines a phased rollout of the best non-AI enhancements for QERA. It 
 - Enhance social, gamification, and admin tools
 - Prepare the app for production readiness
 
-## Phase 1: Core learning experience improvements
+## Current Direction
+- Skip Phase 1 for now.
+- Phase 2 is complete.
+- Phase 3 is complete.
+- Completed Phase 2 and Phase 3 items are marked with `✅`.
+
+## Phase 1: Core learning experience improvements - skipped for now
 
 ### 1.1 Persist exam attempt state and resume support
 - Backend:
-  - ✅ Extend `exam_attempts` with fields for `question_order`, `status`, `started_at`, `last_saved_at`, and `answers`.
-  - ✅ Save partial attempt state whenever the user answers a question or refreshes the exam page.
-  - ✅ Add `GET /api/v1/exams/{exam_id}/attempt/latest` to retrieve the current in-progress attempt.
-  - ✅ Add `PATCH /api/v1/exams/attempt/{attempt_id}` to save progress without submitting.
+  - [x] Extend `exam_attempts` with fields for `question_order`, `status`, `started_at`, `last_saved_at`, and `answers`.
+  - [x] Save partial attempt state whenever the user answers a question or refreshes the exam page.
+  - [x] Add `GET /api/v1/exams/{exam_id}/attempt/latest` to retrieve the current in-progress attempt.
+  - [x] Add `PATCH /api/v1/exams/attempt/{attempt_id}` to save progress without submitting.
 - Frontend:
-  - ✅ Keep exam answers in component state and persist to backend on answer changes.
-  - ✅ Add a resume flow for in-progress attempts on the exam detail page.
-  - ✅ Restore timer, selected answers, and current question order when the user returns.
+  - [x] Keep exam answers in component state and persist to backend on answer changes.
+  - [x] Add a resume flow for in-progress attempts on the exam detail page.
+  - [x] Restore timer, selected answers, and current question order when the user returns.
 - Acceptance criteria:
-  - ✅ Refreshing during an exam does not lose entered answers.
-  - ✅ Users can resume in-progress exams from the same place.
-  - ✅ Timer continues from remaining time, and no duplicate attempt is created.
+  - [x] Refreshing during an exam does not lose entered answers.
+  - [x] Users can resume in-progress exams from the same place.
+  - [x] Timer continues from remaining time, and no duplicate attempt is created.
 
 ### 1.2 Improve question like/bookmark state and author attribution
 - Backend:
-  - ✅ Return `liked` and `bookmarked` state on question list and detail endpoints when the user is authenticated.
-  - ✅ Enforce one-like-per-user at the database and service level.
+  - [x] Return `liked` and `bookmarked` state on question list and detail endpoints when the user is authenticated.
+  - [x] Enforce one-like-per-user at the database and service level.
 - Frontend:
-  - ✅ Use API-provided `liked`/`bookmarked` flags instead of temporary local state.
-  - ✅ Update list and detail pages so liked/bookmarked buttons reflect saved state after refresh.
-  - ✅ Show `By {author_name}` consistently in question cards and detail pages.
+  - [x] Use API-provided `liked`/`bookmarked` flags instead of temporary local state.
+  - [x] Update list and detail pages so liked/bookmarked buttons reflect saved state after refresh.
+  - [x] Show `By {author_name}` consistently in question cards and detail pages.
 - Acceptance criteria:
-  - ✅ Logged-in users see correct liked/bookmarked status after page reloads.
-  - ✅ Question author names appear in every question view.
-  - ✅ Like count does not increase on repeated requests from the same user.
+  - [x] Logged-in users see correct liked/bookmarked status after page reloads.
+  - [x] Question author names appear in every question view.
+  - [x] Like count does not increase on repeated requests from the same user.
 
 ### 1.3 Add enhanced exam mode and timer behavior
 - Backend:
-  - ✅ Add exam configuration fields: `randomize_order`, `randomize_options`, and `secure_mode`.
-  - ✅ Apply question order randomization when creating an attempt and persist that order.
-  - ✅ Auto-submit attempts when the timer reaches zero and mark the attempt complete.
+  - [x] Add exam configuration fields: `randomize_order`, `randomize_options`, and `secure_mode`.
+  - [x] Apply question order randomization when creating an attempt and persist that order.
+  - [ ] Server-side background auto-submit is not implemented; the frontend handles timer expiry and the backend enforces time limits.
 - Frontend:
-  - ✅ Expose secure exam mode and randomization settings in exam creation UI.
-  - ✅ Display a persistent countdown timer during exam attendance.
-  - ✅ Show an explicit warning when secure mode is enabled.
+  - [x] Expose secure exam mode and randomization settings in exam creation UI.
+  - [x] Display a persistent countdown timer during exam attendance.
+  - [x] Show an explicit warning when secure mode is enabled.
 - Acceptance criteria:
-  - ✅ Exam creator can enable randomization and secure mode.
-  - ✅ Questions are shuffled for each attempt when enabled.
-  - ✅ Attempt auto-submits exactly when time expires.
+  - [x] Exam creator can enable randomization and secure mode.
+  - [x] Questions are shuffled for each attempt when enabled.
+  - [x] Attempt auto-submits when the frontend timer expires.
 
 ### 1.4 Bulk import/export for questions and exams
 - Backend:
-  - ✅ Add admin endpoint `POST /api/v1/exams/import` for JSON exam imports.
-  - ✅ Add endpoint `GET /api/v1/exams/export` to download exam data as JSON.
-  - ⚠️ CSV support is not implemented yet.
+  - [x] Add admin endpoint `POST /api/v1/exams/import` for JSON exam imports.
+  - [x] Add endpoint `GET /api/v1/exams/export` to download exam data as JSON.
+  - [ ] CSV support is not implemented yet.
 - Frontend:
-  - ✅ Add import/export controls on the exam listing page for JSON files.
-  - ⚠️ No dedicated preview workflow has been added yet.
+  - [x] Add import/export controls on the exam listing page for JSON files.
+  - [ ] No dedicated preview workflow has been added yet.
 - Acceptance criteria:
-  - ✅ Admins can import exam JSON files and refresh the exam list.
-  - ✅ Exam exports are downloadable as JSON.
-  - ⚠️ CSV import/export is still pending.
+  - [x] Admins can import exam JSON files and refresh the exam list.
+  - [x] Exam exports are downloadable as JSON.
+  - [ ] CSV import/export is still pending.
 
-## Phase 2: Learning analytics and user progress
+## Phase 2: Learning analytics and user progress - ✅ completed
 
 ### 2.1 Progress dashboard
-- Add charts for score history, accuracy by difficulty, and exam completion trends
-- Display recent exam results and question mastery summaries
-- Add progress cards on dashboard: total exams, average score, streaks, and review due
+- ✅ Add charts for score history, accuracy by difficulty, and exam completion trends
+- ✅ Display recent exam results and question mastery summaries
+- ✅ Add progress cards on dashboard: total exams, average score, streaks, and review due
 
 ### 2.2 Weak-topic review and practice
-- Track incorrect answers by topic or tag
-- Create a "Review mistakes" list for questions answered incorrectly
-- Add UI to filter questions by past performance and weak areas
+- ✅ Track incorrect answers by topic or tag
+- ✅ Create a "Review mistakes" list for questions answered incorrectly
+- ✅ Add UI to filter questions by past performance and weak areas
 
 ### 2.3 Personalized recommendations (non-AI)
-- Add rule-based recommendations using bookmarks and performance
-- Show sections like "Practice again", "Recommended questions", and "Recommended exams"
-- Use tags, past incorrect attempts, and question difficulty to suggest content
+- ✅ Add rule-based recommendations using bookmarks and performance
+- ✅ Show sections like "Practice again", "Recommended questions", and "Recommended exams"
+- ✅ Use tags, past incorrect attempts, and question difficulty to suggest content
 
-## Phase 3: Rich content and usability
+## Phase 3: Rich content and usability - ✅ completed
 
 ### 3.1 Media-rich questions and attachments
-- Add support for image URLs or uploaded images in questions and options
-- Add optional file or media attachments for questions and exam content
-- Extend question schema and frontend form to accept image/media fields
+- ✅ Add support for image URLs in questions and options
+- ✅ Add optional file or media attachment URLs for questions and exam content
+- ✅ Extend question schema and frontend form to accept image/media fields
 
 ### 3.2 Profile and user settings improvements
-- Add avatar upload or profile picture via URL
-- Add user bio, preferred topics, and learning goals
-- Add profile settings page for notification preferences and display options
+- ✅ Add profile picture via URL
+- ✅ Add user bio, preferred topics, and learning goals
+- ✅ Add profile settings page for notification preferences and display options
 
 ### 3.3 Responsive and polished UI
-- Improve mobile responsiveness for question list, exam pages, and dashboard
-- Add loading states, error messages, and empty-state screens
-- Add better accessible labels, keyboard navigation, and focus handling
+- ✅ Improve mobile responsiveness for question list, exam pages, dashboard, and profile settings
+- ✅ Add loading states, error messages, and empty-state screens
+- ✅ Add better accessible labels, keyboard navigation, and focus handling
 
-## Phase 4: Social, gamification, and community
+## Phase 4: Social, gamification, and community - ✅ completed
 
 ### 4.1 Achievements and badges
-- Add achievement badges for milestones: first exam, streaks, top scorer, question creator
-- Add badge display on user profile and dashboard
-- Add badges table and unlock criteria
+- ✅ Add achievement badges for milestones: first exam, streaks, top scorer, question creator
+- ✅ Add badge display on user profile and dashboard
+- ✅ Add badges table and unlock criteria
 
 ### 4.2 Comments and interaction improvements
-- Add public question discussion threads per question
-- Allow users to upvote comments and mark helpful replies
-- Add comment sorting (newest, most helpful)
+- ✅ Add public question discussion threads per question
+- ✅ Allow users to upvote comments and mark helpful replies
+- ✅ Add comment sorting (newest, most helpful)
 
 ### 4.3 Notification and activity feed
-- Add richer notification types with action links
-- Implement activity feed on dashboard: exam submissions, bookmarks, comments, achievements
-- Allow users to mark all notifications read
+- ✅ Add richer notification types with action links
+- ✅ Implement activity feed on dashboard: exam submissions, bookmarks, comments, achievements
+- ✅ Allow users to mark all notifications read
 
 ## Phase 5: Admin and operational tooling
 

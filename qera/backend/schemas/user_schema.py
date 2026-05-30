@@ -33,6 +33,9 @@ class UserProfileOut(BaseModel):
     role: str
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
+    preferred_topics: List[str] = []
+    learning_goals: Optional[str] = None
+    notification_preferences: dict = {}
     created_at: str
     updated_at: str
     stats: UserProfileStats
@@ -44,3 +47,6 @@ class UserUpdate(BaseModel):
     name: Optional[constr(min_length=2, max_length=100)] = None
     avatar_url: Optional[str] = None
     bio: Optional[str] = None
+    preferred_topics: Optional[List[constr(min_length=1, max_length=50)]] = None
+    learning_goals: Optional[str] = None
+    notification_preferences: Optional[dict] = None

@@ -59,14 +59,28 @@ export default function useQuestions(initialLimit = 12) {
 
   const optimisticBookmarkToggle = useCallback(
     async (questionId, shouldBookmark) => {
+      const snapshot = items
+      setItems((prev) =>
+        prev.map((q) =>
+          q.id === questionId
+            ? {
+                ...q,
+                bookmarked: shouldBookmark,
+              }
+            : q,
+        ),
+      )
+
       try {
-        await api.post(`/questions/${questionId}/bookmark`)
+        const { data } = await api.post(`/questions/${questionId}/bookmark`)
+        setItems((prev) =>
+          prev.map((q) => (q.id === questionId ? { ...q, bookmarked: Boolean(data.bookmarked) } : q)),
+        )
       } catch {
-        return !shouldBookmark
+        setItems(snapshot)
       }
-      return shouldBookmark
     },
-    [],
+    [items],
   )
 
   return useMemo(

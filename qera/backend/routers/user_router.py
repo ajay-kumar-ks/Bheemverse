@@ -35,7 +35,16 @@ async def read_user_profile(request: Request, user_id: int):
 @router.put("/users/me", response_model=UserProfileOut)
 async def update_my_profile(request: Request, payload: UserUpdate, current_user: dict = Depends(get_current_user)):
     db = request.app.state.db
-    updated = await user_model.update_user(db, current_user["id"], name=payload.name, avatar_url=payload.avatar_url, bio=payload.bio)
+    updated = await user_model.update_user(
+        db,
+        current_user["id"],
+        name=payload.name,
+        avatar_url=payload.avatar_url,
+        bio=payload.bio,
+        preferred_topics=payload.preferred_topics,
+        learning_goals=payload.learning_goals,
+        notification_preferences=payload.notification_preferences,
+    )
     if updated is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     profile = await user_model.get_user_profile(db, current_user["id"])
@@ -60,6 +69,12 @@ async def read_my_questions(request: Request, current_user: dict = Depends(get_c
 async def read_my_exams(request: Request, current_user: dict = Depends(get_current_user)):
     db = request.app.state.db
     return await user_model.get_user_exams(db, current_user["id"])
+
+
+@router.get("/users/me/progress")
+async def read_my_progress(request: Request, current_user: dict = Depends(get_current_user)):
+    db = request.app.state.db
+    return await user_model.get_learning_progress(db, current_user["id"])
 
 
 @router.get("/users/me/notifications")

@@ -9,6 +9,9 @@ CREATE TABLE IF NOT EXISTS users (
     is_suspended INTEGER NOT NULL DEFAULT 0,
     avatar_url TEXT,
     bio TEXT,
+    preferred_topics TEXT NOT NULL DEFAULT '[]',
+    learning_goals TEXT,
+    notification_preferences TEXT NOT NULL DEFAULT '{"email":true,"in_app":true,"exam_reminders":true}',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -22,6 +25,9 @@ CREATE TABLE IF NOT EXISTS questions (
     correct_answer TEXT,
     difficulty TEXT NOT NULL CHECK(difficulty IN ('easy','medium','hard')) DEFAULT 'medium',
     explanation TEXT,
+    image_url TEXT,
+    media_url TEXT,
+    attachment_url TEXT,
     is_public INTEGER NOT NULL DEFAULT 1,
     is_flagged INTEGER NOT NULL DEFAULT 0,
     likes_count INTEGER NOT NULL DEFAULT 0,
@@ -44,6 +50,7 @@ CREATE TABLE IF NOT EXISTS question_options (
     question_id INTEGER NOT NULL,
     option_text TEXT NOT NULL,
     option_order INTEGER NOT NULL,
+    image_url TEXT,
     FOREIGN KEY(question_id) REFERENCES questions(id) ON DELETE CASCADE,
     UNIQUE(question_id, option_order)
 );

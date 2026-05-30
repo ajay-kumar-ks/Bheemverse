@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field, FieldValidationInfo, constr, model_validator
+from pydantic import BaseModel, Field, FieldValidationInfo, constr
 
 
 class ExamQuestionCreate(BaseModel):
@@ -75,23 +75,11 @@ class AttemptSave(BaseModel):
     time_taken_seconds: int = Field(..., ge=0)
     answers: Dict[int, str]
 
-    @model_validator(mode="after")
-    def ensure_answers_present(self):
-        if not self.answers:
-            raise ValueError("Answers payload cannot be empty")
-        return self
-
 
 class AttemptSubmit(BaseModel):
     attempt_id: int
     time_taken_seconds: int = Field(..., ge=0)
     answers: Dict[int, str]
-
-    @model_validator(mode="after")
-    def ensure_answers_present(self):
-        if not self.answers:
-            raise ValueError("Answers payload cannot be empty")
-        return self
 
 
 class ResultOut(BaseModel):
@@ -103,4 +91,5 @@ class ResultOut(BaseModel):
     total_marks: int
     time_taken_seconds: int
     answers: Dict[str, str]
+    questions: List[ExamQuestionOut] = []
     submitted_at: str

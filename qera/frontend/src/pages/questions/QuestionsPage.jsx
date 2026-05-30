@@ -12,7 +12,6 @@ export default function QuestionsPage() {
   const [difficulty, setDifficulty] = useState('all')
   const [type, setType] = useState('all')
   const [mode, setMode] = useState('keyword')
-  const [bookmarkMap, setBookmarkMap] = useState({})
 
   const filtered = useMemo(() => {
     const keyword = search.trim().toLowerCase()
@@ -34,12 +33,9 @@ export default function QuestionsPage() {
   }
 
   const toggleBookmark = async (id) => {
-    const shouldBookmark = !bookmarkMap[id]
-    setBookmarkMap((prev) => ({ ...prev, [id]: shouldBookmark }))
-    const confirmed = await optimisticBookmarkToggle(id, shouldBookmark)
-    if (confirmed !== shouldBookmark) {
-      setBookmarkMap((prev) => ({ ...prev, [id]: confirmed }))
-    }
+    const question = items.find((q) => q.id === id)
+    if (!question) return
+    await optimisticBookmarkToggle(id, !question.bookmarked)
   }
 
   return (
@@ -104,6 +100,9 @@ export default function QuestionsPage() {
       <div className="grid gap-4 md:grid-cols-2">
         {filtered.map((q) => (
           <article key={q.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            {q.image_url ? (
+              <img src={q.image_url} alt="" className="mb-4 h-36 w-full rounded-xl border border-slate-100 object-cover" />
+            ) : null}
             <Link to={`/questions/${q.id}`} className="text-lg font-semibold text-slate-900 hover:text-indigo-700">
               {q.title}
             </Link>
@@ -136,10 +135,10 @@ export default function QuestionsPage() {
                 type="button"
                 onClick={() => toggleBookmark(q.id)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                  bookmarkMap[q.id] ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
+                  q.bookmarked ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
                 }`}
               >
-                {bookmarkMap[q.id] ? 'Bookmarked' : 'Bookmark'}
+                {q.bookmarked ? 'Bookmarked' : 'Bookmark'}
               </button>
             </div>
           </article>

@@ -1,8 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '../../services/api'
 
 const attemptStorageKey = (examId) => `qera_exam_attempt_${examId}`
+
+function parseServerTime(value) {
+  if (!value) return Date.now()
+  const text = String(value)
+  const normalized = text.includes('T') ? text : `${text.replace(' ', 'T')}Z`
+  const parsed = new Date(normalized).getTime()
+  return Number.isNaN(parsed) ? Date.now() : parsed
+}
 
 function formatTimer(seconds) {
   const mins = String(Math.floor(seconds / 60)).padStart(2, '0')
@@ -30,6 +38,8 @@ export default function AttendExamPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [autoSubmitArmed, setAutoSubmitArmed] = useState(false)
+  const submittingRef = useRef(false)
 
   const storageKey = attemptStorageKey(id)
 
@@ -66,6 +76,7 @@ export default function AttendExamPage() {
       setLoading(true)
       setError('')
       try {
+        setAutoSubmitArmed(false)
         const examRes = await api.get(`/exams/${id}`)
         if (cancelled) return
 
@@ -92,7 +103,7 @@ export default function AttendExamPage() {
             attemptId: attemptResponse.data.id,
             examId: Number(id),
             attemptNumber: attemptResponse.data.attempt_number,
-            startedAt: new Date(attemptResponse.data.started_at).getTime(),
+            startedAt: parseServerTime(attemptResponse.data.started_at),
             durationMinutes: examData.duration_minutes,
             answers: attemptResponse.data.answers || {},
             questions: attemptResponse.data.questions || [],
@@ -109,7 +120,7 @@ export default function AttendExamPage() {
             attemptId: data.id,
             examId: Number(id),
             attemptNumber: data.attempt_number,
-            startedAt: new Date(data.started_at).getTime(),
+            startedAt: parseServerTime(data.started_at),
             durationMinutes: examData.duration_minutes,
             answers: data.answers || {},
             questions: data.questions || [],
@@ -151,6 +162,7 @@ export default function AttendExamPage() {
           return
         }
 
+        setAutoSubmitArmed(true)
         interval = setInterval(() => {
           setRemainingSeconds((current) => {
             if (current <= 1) {
@@ -178,10 +190,11 @@ export default function AttendExamPage() {
   }, [id])
 
   useEffect(() => {
-    if (remainingSeconds === 0 && attempt && exam) {
+    if (autoSubmitArmed && remainingSeconds === 0 && attempt && exam) {
+      setAutoSubmitArmed(false)
       handleSubmit(attempt, exam, answers, clearStoredAttempt, true).catch(() => {})
     }
-  }, [remainingSeconds, attempt, exam, answers])
+  }, [autoSubmitArmed, remainingSeconds, attempt, exam, answers])
 
   const setAnswer = (questionId, value) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }))
@@ -208,7 +221,8 @@ export default function AttendExamPage() {
 
   const handleSubmit = async (currentAttempt, examData, currentAnswers, clearFn, auto = false) => {
     if (!currentAttempt || !examData) return
-    if (saving) return
+    if (submittingRef.current) return
+    submittingRef.current = true
     setSaving(true)
     setError('')
     try {
@@ -227,6 +241,7 @@ export default function AttendExamPage() {
         setError(err.response?.data?.detail || 'Unable to submit exam.')
       }
     } finally {
+      submittingRef.current = false
       setSaving(false)
     }
   }
@@ -277,10 +292,28 @@ export default function AttendExamPage() {
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700">{exam.questions[index]?.marks ?? 1} pts</span>
               </div>
 
+              {question.image_url ? (
+                <img src={question.image_url} alt="" className="mt-4 max-h-80 w-full rounded-xl border border-slate-200 object-contain" />
+              ) : null}
+              {(question.media_url || question.attachment_url) ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {question.media_url ? (
+                    <a href={question.media_url} target="_blank" rel="noreferrer" className="rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700">
+                      Open media
+                    </a>
+                  ) : null}
+                  {question.attachment_url ? (
+                    <a href={question.attachment_url} target="_blank" rel="noreferrer" className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-700">
+                      Open attachment
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
+
               {question.options?.length ? (
                 <div className="mt-4 space-y-3">
                   {question.options.map((option) => (
-                    <label key={option.id} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <label key={option.id} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                       <input
                         type={question.type === 'mcq' ? 'radio' : 'radio'}
                         name={`question-${question.id}`}
@@ -289,7 +322,12 @@ export default function AttendExamPage() {
                         onChange={(e) => setAnswer(question.id, e.target.value)}
                         className="h-4 w-4 text-indigo-600"
                       />
-                      <span className="text-sm text-slate-700">{option.option_order}. {option.option_text}</span>
+                      <span className="text-sm text-slate-700">
+                        {option.option_order}. {option.option_text}
+                        {option.image_url ? (
+                          <img src={option.image_url} alt="" className="mt-2 max-h-36 rounded-lg border border-slate-100 object-contain" />
+                        ) : null}
+                      </span>
                     </label>
                   ))}
                 </div>

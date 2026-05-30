@@ -2,22 +2,61 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import api from "../../services/api";
 
+function Avatar({ profile }) {
+  const initials = profile?.name
+    ?.split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  if (profile?.avatar_url) {
+    return <img src={profile.avatar_url} alt="" className="h-20 w-20 rounded-full border border-slate-200 object-cover" />;
+  }
+  return (
+    <div className="flex h-20 w-20 items-center justify-center rounded-full bg-indigo-100 text-xl font-bold text-indigo-700">
+      {initials || "U"}
+    </div>
+  );
+}
+
 export default function MyProfilePage() {
-  const { user, refreshUser } = useAuth();
+  const { refreshUser } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ name: "", avatar_url: "", bio: "" });
+  const [topicInput, setTopicInput] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    avatar_url: "",
+    bio: "",
+    preferred_topics: [],
+    learning_goals: "",
+    notification_preferences: { email: true, in_app: true, exam_reminders: true },
+  });
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
   useEffect(() => {
     async function loadProfile() {
+      setLoading(true);
       try {
         const response = await api.get("/users/me");
-        setProfile(response.data);
-        setForm({ name: response.data.name || "", avatar_url: response.data.avatar_url || "", bio: response.data.bio || "" });
-      } catch (err) {
+        const data = response.data;
+        setProfile(data);
+        setForm({
+          name: data.name || "",
+          avatar_url: data.avatar_url || "",
+          bio: data.bio || "",
+          preferred_topics: data.preferred_topics || [],
+          learning_goals: data.learning_goals || "",
+          notification_preferences: {
+            email: data.notification_preferences?.email ?? true,
+            in_app: data.notification_preferences?.in_app ?? true,
+            exam_reminders: data.notification_preferences?.exam_reminders ?? true,
+          },
+        });
+      } catch {
         setError("Unable to load profile.");
       } finally {
         setLoading(false);
@@ -26,6 +65,17 @@ export default function MyProfilePage() {
 
     loadProfile();
   }, []);
+
+  const addTopic = () => {
+    const value = topicInput.trim().toLowerCase();
+    if (!value || form.preferred_topics.includes(value)) return;
+    setForm((prev) => ({ ...prev, preferred_topics: [...prev.preferred_topics, value] }));
+    setTopicInput("");
+  };
+
+  const removeTopic = (topic) => {
+    setForm((prev) => ({ ...prev, preferred_topics: prev.preferred_topics.filter((item) => item !== topic) }));
+  };
 
   async function saveChanges(event) {
     event.preventDefault();
@@ -37,33 +87,37 @@ export default function MyProfilePage() {
       setProfile(response.data);
       await refreshUser();
       setEditing(false);
-      setSuccess("Profile updated successfully.");
+      setSuccess("Profile settings updated.");
     } catch (err) {
-      setError("Unable to save profile.");
+      setError(err.response?.data?.detail || "Unable to save profile.");
     }
   }
 
   if (loading) {
-    return <div className="p-8">Loading profile...</div>;
+    return <div className="mx-auto max-w-5xl px-4 py-8 text-sm text-slate-500">Loading profile...</div>;
   }
 
   if (error && !profile) {
-    return <div className="p-8 text-red-500">{error}</div>;
+    return <div className="mx-auto max-w-5xl px-4 py-8 text-sm text-rose-600">{error}</div>;
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="mb-6 flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{profile?.name}</h1>
-          <p className="text-sm text-gray-600">{profile?.email}</p>
-          <p className="mt-3 text-gray-700">{profile?.bio || "No bio added yet."}</p>
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <div className="mb-6 flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <Avatar profile={profile} />
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900">{profile?.name}</h1>
+            <p className="text-sm text-slate-600">{profile?.email}</p>
+            <p className="mt-2 max-w-2xl text-sm text-slate-700">{profile?.bio || "No bio added yet."}</p>
+          </div>
         </div>
         <button
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          type="button"
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
           onClick={() => setEditing((current) => !current)}
         >
-          {editing ? "Cancel" : "Edit Profile"}
+          {editing ? "Cancel" : "Edit settings"}
         </button>
       </div>
 
@@ -71,43 +125,115 @@ export default function MyProfilePage() {
       {error && <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</div>}
 
       {editing && (
-        <form className="mb-8 space-y-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm" onSubmit={saveChanges}>
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Name</label>
-            <input
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
-              value={form.name}
-              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-              required
-            />
+        <form className="mb-8 space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" onSubmit={saveChanges}>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="block text-sm font-medium text-slate-700" htmlFor="profile-name">Name</label>
+              <input
+                id="profile-name"
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                value={form.name}
+                onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700" htmlFor="profile-avatar">Profile picture URL</label>
+              <input
+                id="profile-avatar"
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                value={form.avatar_url}
+                onChange={(event) => setForm((prev) => ({ ...prev, avatar_url: event.target.value }))}
+                placeholder="https://..."
+              />
+            </div>
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-slate-700">Avatar URL</label>
-            <input
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
-              value={form.avatar_url}
-              onChange={(event) => setForm((prev) => ({ ...prev, avatar_url: event.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Bio</label>
+            <label className="block text-sm font-medium text-slate-700" htmlFor="profile-bio">Bio</label>
             <textarea
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none"
+              id="profile-bio"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               rows={4}
               value={form.bio}
               onChange={(event) => setForm((prev) => ({ ...prev, bio: event.target.value }))}
             />
           </div>
-          <button type="submit" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
-            Save Changes
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700" htmlFor="profile-goals">Learning goals</label>
+            <textarea
+              id="profile-goals"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              rows={3}
+              value={form.learning_goals}
+              onChange={(event) => setForm((prev) => ({ ...prev, learning_goals: event.target.value }))}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700" htmlFor="profile-topic">Preferred topics</label>
+            <div className="mt-1 flex flex-col gap-2 sm:flex-row">
+              <input
+                id="profile-topic"
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                value={topicInput}
+                onChange={(event) => setTopicInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addTopic();
+                  }
+                }}
+              />
+              <button type="button" onClick={addTopic} className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200">
+                Add topic
+              </button>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {form.preferred_topics.map((topic) => (
+                <button key={topic} type="button" onClick={() => removeTopic(topic)} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                  #{topic} x
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <fieldset className="rounded-xl border border-slate-200 p-4">
+            <legend className="px-1 text-sm font-semibold text-slate-700">Notification preferences</legend>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              {[
+                ["email", "Email"],
+                ["in_app", "In-app"],
+                ["exam_reminders", "Exam reminders"],
+              ].map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.notification_preferences[key])}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        notification_preferences: { ...prev.notification_preferences, [key]: event.target.checked },
+                      }))
+                    }
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <button type="submit" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            Save settings
           </button>
         </form>
       )}
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-3">Stats</h2>
-          <div className="space-y-3 text-sm text-gray-700">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold">Stats</h2>
+          <div className="mt-4 space-y-3 text-sm text-slate-700">
             <div>Global Rank: {profile.stats.global_rank ?? "N/A"}</div>
             <div>Exams Attended: {profile.stats.exams_attended}</div>
             <div>Exams Created: {profile.stats.exams_created}</div>
@@ -116,39 +242,13 @@ export default function MyProfilePage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
-          <h2 className="text-lg font-semibold mb-3">Recent Activity</h2>
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-medium">Recent Questions</h3>
-              {profile.recent_questions.length === 0 ? (
-                <p className="text-sm text-gray-500">No recent questions.</p>
-              ) : (
-                <ul className="mt-3 space-y-2 text-sm text-gray-700">
-                  {profile.recent_questions.map((question) => (
-                    <li key={question.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                      <div className="font-medium">{question.title}</div>
-                      <div className="text-xs text-gray-500">Difficulty: {question.difficulty}</div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div>
-              <h3 className="font-medium">Recent Exams</h3>
-              {profile.recent_exams.length === 0 ? (
-                <p className="text-sm text-gray-500">No recent exams.</p>
-              ) : (
-                <ul className="mt-3 space-y-2 text-sm text-gray-700">
-                  {profile.recent_exams.map((exam) => (
-                    <li key={exam.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                      <div className="font-medium">{exam.title}</div>
-                      <div className="text-xs text-gray-500">Marks: {exam.total_marks} • Duration: {exam.duration_minutes} mins</div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+          <h2 className="text-lg font-semibold">Learning profile</h2>
+          <p className="mt-3 text-sm text-slate-700">{profile.learning_goals || "No learning goals added yet."}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {(profile.preferred_topics || []).length ? profile.preferred_topics.map((topic) => (
+              <span key={topic} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">#{topic}</span>
+            )) : <span className="text-sm text-slate-500">No preferred topics yet.</span>}
           </div>
         </div>
       </div>

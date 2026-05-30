@@ -4,6 +4,14 @@ import api from '../../services/api'
 
 const attemptStorageKey = (examId) => `qera_exam_attempt_${examId}`
 
+function parseServerTime(value) {
+  if (!value) return Date.now()
+  const text = String(value)
+  const normalized = text.includes('T') ? text : `${text.replace(' ', 'T')}Z`
+  const parsed = new Date(normalized).getTime()
+  return Number.isNaN(parsed) ? Date.now() : parsed
+}
+
 export default function ExamDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -29,7 +37,7 @@ export default function ExamDetailPage() {
             const active = {
               attemptId: attemptResponse.data.id,
               attemptNumber: attemptResponse.data.attempt_number,
-              startedAt: new Date(attemptResponse.data.started_at).getTime(),
+              startedAt: parseServerTime(attemptResponse.data.started_at),
               durationMinutes: data.duration_minutes,
               questions: attemptResponse.data.questions || [],
             }
@@ -93,7 +101,7 @@ export default function ExamDetailPage() {
         attemptId: data.id,
         examId: Number(id),
         attemptNumber: data.attempt_number,
-        startedAt: new Date(data.started_at).getTime(),
+        startedAt: parseServerTime(data.started_at),
         durationMinutes: exam.duration_minutes,
         questions: data.questions || [],
       }

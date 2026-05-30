@@ -8,6 +8,15 @@ function formatTime(seconds) {
   return `${mins}m ${secs}s`
 }
 
+function normalize(value) {
+  return String(value ?? '').trim().toLowerCase()
+}
+
+function isCorrectOption(question, option) {
+  const correct = normalize(question?.correct_answer)
+  return correct && (normalize(option.option_text) === correct || String(option.option_order) === correct)
+}
+
 export default function ExamResultPage() {
   const { id, aid } = useParams()
   const [result, setResult] = useState(null)
@@ -25,7 +34,9 @@ export default function ExamResultPage() {
         const { data } = await api.get(`/exams/${id}/result/${aid}`)
         if (cancelled) return
         setResult(data)
-        const questionIds = Object.keys(data.answers || {}).map((qid) => Number(qid))
+        const resultQuestionIds = (data.questions || []).map((item) => Number(item.question_id))
+        const answeredQuestionIds = Object.keys(data.answers || {}).map((qid) => Number(qid))
+        const questionIds = [...new Set([...resultQuestionIds, ...answeredQuestionIds])].filter(Boolean)
         const questionResponses = await Promise.all(questionIds.map((qid) => api.get(`/questions/${qid}`)))
         if (cancelled) return
         setQuestions(questionResponses.map((response) => response.data))
@@ -77,8 +88,11 @@ export default function ExamResultPage() {
         </div>
 
         <div className="mt-10 space-y-5">
-          {Object.entries(result.answers || {}).map(([questionId, answer]) => {
+          {(result.questions || []).map((resultQuestion) => {
+            const questionId = String(resultQuestion.question_id)
+            const answer = result.answers?.[questionId] ?? ''
             const question = questionMap[Number(questionId)]
+            const correct = normalize(answer) && normalize(answer) === normalize(question?.correct_answer)
             return (
               <article key={questionId} className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -86,7 +100,9 @@ export default function ExamResultPage() {
                     <p className="font-semibold text-slate-900">{question ? question.title : `Question ${questionId}`}</p>
                     <p className="text-sm text-slate-500">Your answer</p>
                   </div>
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700">Question ID {questionId}</span>
+                  <span className={`rounded-full px-3 py-1 text-sm ${correct ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                    {correct ? 'Correct' : 'Review'}
+                  </span>
                 </div>
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -99,6 +115,34 @@ export default function ExamResultPage() {
                     <p className="mt-2 font-medium text-slate-900">{question?.correct_answer ?? 'Unknown'}</p>
                   </div>
                 </div>
+
+                {question?.options?.length ? (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Options</p>
+                    {question.options.map((option) => {
+                      const selected = normalize(answer) === normalize(option.option_text)
+                      const correctOption = isCorrectOption(question, option)
+                      return (
+                        <div
+                          key={option.id}
+                          className={`rounded-2xl border px-4 py-3 text-sm ${
+                            correctOption
+                              ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                              : selected
+                                ? 'border-rose-300 bg-rose-50 text-rose-900'
+                                : 'border-slate-200 bg-white text-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span>{option.option_order}. {option.option_text}</span>
+                            {correctOption ? <span className="text-xs font-semibold">Correct answer</span> : selected ? <span className="text-xs font-semibold">Your choice</span> : null}
+                          </div>
+                          {option.image_url ? <img src={option.image_url} alt="" className="mt-2 max-h-36 rounded-lg border border-white object-contain" /> : null}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : null}
               </article>
             )
           })}

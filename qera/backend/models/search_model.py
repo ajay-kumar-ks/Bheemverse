@@ -88,9 +88,14 @@ async def keyword_search_questions(
     search_sql = f"""
     SELECT DISTINCT questions.id, questions.user_id, questions.title, questions.description,
            questions.type, questions.correct_answer, questions.difficulty, questions.explanation,
-           questions.is_public, questions.is_flagged, questions.likes_count, questions.created_at, questions.updated_at
+           questions.is_public, questions.is_flagged, questions.likes_count, questions.created_at, questions.updated_at,
+           users.name,
+           0 AS liked,
+           0 AS bookmarked,
+           questions.image_url, questions.media_url, questions.attachment_url
     FROM questions
     INNER JOIN questions_fts ON questions.id = questions_fts.rowid
+    INNER JOIN users ON users.id = questions.user_id
     {tag_join}
     WHERE {where_sql}
     ORDER BY questions.created_at DESC

@@ -20,6 +20,10 @@ def _row_to_question(row) -> Optional[dict]:
         "updated_at": row[12],
         "author_name": row[13],
         "liked": bool(row[14]),
+        "bookmarked": bool(row[15]) if len(row) > 15 else False,
+        "image_url": row[16] if len(row) > 16 else None,
+        "media_url": row[17] if len(row) > 17 else None,
+        "attachment_url": row[18] if len(row) > 18 else None,
     }
 
 
@@ -34,11 +38,11 @@ async def _get_tags(db, question_id: int) -> List[dict]:
 
 async def _get_options(db, question_id: int) -> List[dict]:
     cursor = await db.execute(
-        "SELECT id, option_text, option_order FROM question_options WHERE question_id = ? ORDER BY option_order",
+        "SELECT id, option_text, option_order, image_url FROM question_options WHERE question_id = ? ORDER BY option_order",
         (question_id,),
     )
     rows = await cursor.fetchall()
-    return [{"id": row[0], "option_text": row[1], "option_order": row[2]} for row in rows]
+    return [{"id": row[0], "option_text": row[1], "option_order": row[2], "image_url": row[3]} for row in rows]
 
 
 async def _get_or_create_tag_id(db, name: str) -> int:
@@ -60,13 +64,22 @@ async def create_question(
     correct_answer: str | None,
     difficulty: str,
     explanation: str | None,
+    image_url: str | None,
+    media_url: str | None,
+    attachment_url: str | None,
     is_public: bool,
     tag_names: list[str],
     options: list[dict[str, Any]],
 ) -> dict:
     cursor = await db.execute(
-        "INSERT INTO questions (user_id, title, description, type, correct_answer, difficulty, explanation, is_public) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (user_id, title, description, type, correct_answer, difficulty, explanation, int(is_public)),
+        """
+        INSERT INTO questions (
+            user_id, title, description, type, correct_answer, difficulty, explanation,
+            image_url, media_url, attachment_url, is_public
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (user_id, title, description, type, correct_answer, difficulty, explanation, image_url, media_url, attachment_url, int(is_public)),
     )
     question_id = cursor.lastrowid
     await db.commit()
@@ -80,8 +93,8 @@ async def create_question(
 
     for option in options:
         await db.execute(
-            "INSERT INTO question_options (question_id, option_text, option_order) VALUES (?, ?, ?)",
-            (question_id, option["option_text"], option["option_order"]),
+            "INSERT INTO question_options (question_id, option_text, option_order, image_url) VALUES (?, ?, ?, ?)",
+            (question_id, option["option_text"], option["option_order"], option.get("image_url")),
         )
 
     await db.commit()
@@ -91,8 +104,18 @@ async def create_question(
 async def get_question_by_id(db, question_id: int, current_user_id: int | None = None) -> Optional[dict]:
     current_user_id = current_user_id if current_user_id is not None else -1
     cursor = await db.execute(
-        "SELECT q.id, q.user_id, q.title, q.description, q.type, q.correct_answer, q.difficulty, q.explanation, q.is_public, q.is_flagged, q.likes_count, q.created_at, q.updated_at, u.name, EXISTS(SELECT 1 FROM question_likes l WHERE l.user_id = ? AND l.question_id = q.id) AS liked FROM questions q JOIN users u ON u.id = q.user_id WHERE q.id = ?",
-        (current_user_id, question_id),
+        """
+        SELECT q.id, q.user_id, q.title, q.description, q.type, q.correct_answer, q.difficulty,
+               q.explanation, q.is_public, q.is_flagged, q.likes_count, q.created_at, q.updated_at,
+               u.name,
+               EXISTS(SELECT 1 FROM question_likes l WHERE l.user_id = ? AND l.question_id = q.id) AS liked,
+               EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = ? AND b.question_id = q.id) AS bookmarked,
+               q.image_url, q.media_url, q.attachment_url
+        FROM questions q
+        JOIN users u ON u.id = q.user_id
+        WHERE q.id = ?
+        """,
+        (current_user_id, current_user_id, question_id),
     )
     row = await cursor.fetchone()
     question = _row_to_question(row)
@@ -106,8 +129,17 @@ async def get_question_by_id(db, question_id: int, current_user_id: int | None =
 async def list_questions(db, page: int = 1, limit: int = 20, only_public: bool = True, current_user_id: int | None = None) -> list[dict]:
     current_user_id = current_user_id if current_user_id is not None else -1
     offset = (page - 1) * limit
-    query = "SELECT q.id, q.user_id, q.title, q.description, q.type, q.correct_answer, q.difficulty, q.explanation, q.is_public, q.is_flagged, q.likes_count, q.created_at, q.updated_at, u.name, EXISTS(SELECT 1 FROM question_likes l WHERE l.user_id = ? AND l.question_id = q.id) AS liked FROM questions q JOIN users u ON u.id = q.user_id"
-    params: list = [current_user_id]
+    query = """
+        SELECT q.id, q.user_id, q.title, q.description, q.type, q.correct_answer, q.difficulty,
+               q.explanation, q.is_public, q.is_flagged, q.likes_count, q.created_at, q.updated_at,
+               u.name,
+               EXISTS(SELECT 1 FROM question_likes l WHERE l.user_id = ? AND l.question_id = q.id) AS liked,
+               EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = ? AND b.question_id = q.id) AS bookmarked,
+               q.image_url, q.media_url, q.attachment_url
+        FROM questions q
+        JOIN users u ON u.id = q.user_id
+    """
+    params: list = [current_user_id, current_user_id]
     if only_public:
         query += " WHERE q.is_public = 1 AND q.is_flagged = 0"
     query += " ORDER BY q.created_at DESC LIMIT ? OFFSET ?"
@@ -130,6 +162,9 @@ async def update_question(
     correct_answer: str | None = None,
     difficulty: str | None = None,
     explanation: str | None = None,
+    image_url: str | None = None,
+    media_url: str | None = None,
+    attachment_url: str | None = None,
     is_public: bool | None = None,
     tag_names: list[str] | None = None,
     options: list[dict[str, Any]] | None = None,
@@ -157,6 +192,15 @@ async def update_question(
     if explanation is not None:
         fields.append("explanation = ?")
         values.append(explanation)
+    if image_url is not None:
+        fields.append("image_url = ?")
+        values.append(image_url)
+    if media_url is not None:
+        fields.append("media_url = ?")
+        values.append(media_url)
+    if attachment_url is not None:
+        fields.append("attachment_url = ?")
+        values.append(attachment_url)
     if is_public is not None:
         fields.append("is_public = ?")
         values.append(int(is_public))
@@ -177,8 +221,8 @@ async def update_question(
         await db.execute("DELETE FROM question_options WHERE question_id = ?", (question_id,))
         for option in options:
             await db.execute(
-                "INSERT INTO question_options (question_id, option_text, option_order) VALUES (?, ?, ?)",
-                (question_id, option["option_text"], option["option_order"]),
+                "INSERT INTO question_options (question_id, option_text, option_order, image_url) VALUES (?, ?, ?, ?)",
+                (question_id, option["option_text"], option["option_order"], option.get("image_url")),
             )
 
     await db.commit()

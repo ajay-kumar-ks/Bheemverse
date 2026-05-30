@@ -19,6 +19,7 @@ export default function QuestionDetailPage() {
       try {
         const { data } = await api.get(`/questions/${id}`)
         setQuestion(data)
+        setBookmarked(Boolean(data.bookmarked))
       } catch (err) {
         setError(err.response?.data?.detail || 'Failed to load question.')
       } finally {
@@ -44,7 +45,8 @@ export default function QuestionDetailPage() {
     const next = !bookmarked
     setBookmarked(next)
     try {
-      await api.post(`/questions/${id}/bookmark`)
+      const { data } = await api.post(`/questions/${id}/bookmark`)
+      setBookmarked(Boolean(data.bookmarked))
     } catch {
       setBookmarked(!next)
     }
@@ -81,6 +83,39 @@ export default function QuestionDetailPage() {
         <p className="mt-2 text-sm text-slate-500">By {question.author_name}</p>
         <p className="mt-2 text-slate-600">{question.description}</p>
 
+        {question.image_url ? (
+          <img
+            src={question.image_url}
+            alt=""
+            className="mt-5 max-h-96 w-full rounded-xl border border-slate-200 object-contain"
+          />
+        ) : null}
+
+        {(question.media_url || question.attachment_url) ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {question.media_url ? (
+              <a
+                href={question.media_url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
+              >
+                Open media
+              </a>
+            ) : null}
+            {question.attachment_url ? (
+              <a
+                href={question.attachment_url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+              >
+                Open attachment
+              </a>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="mt-4 flex flex-wrap gap-2">
           <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium capitalize text-indigo-700">
             {question.difficulty}
@@ -101,6 +136,9 @@ export default function QuestionDetailPage() {
             {question.options.map((option) => (
               <div key={option.id} className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
                 {option.option_order}. {option.option_text}
+                {option.image_url ? (
+                  <img src={option.image_url} alt="" className="mt-2 max-h-48 rounded-lg border border-slate-100 object-contain" />
+                ) : null}
               </div>
             ))}
           </div>

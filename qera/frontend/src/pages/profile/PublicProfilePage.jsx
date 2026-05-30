@@ -37,10 +37,25 @@ export default function PublicProfilePage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-      <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h1 className="text-3xl font-bold">{profile.name}</h1>
-        <p className="text-sm text-gray-600">{profile.email}</p>
-        <p className="mt-3 text-gray-700">{profile.bio || "No bio available."}</p>
+      <div className="mb-8 flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm sm:flex-row sm:items-center">
+        {profile.avatar_url ? (
+          <img src={profile.avatar_url} alt="" className="h-20 w-20 rounded-full border border-slate-200 object-cover" />
+        ) : (
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-indigo-100 text-xl font-bold text-indigo-700">
+            {profile.name?.slice(0, 2).toUpperCase()}
+          </div>
+        )}
+        <div>
+          <h1 className="text-3xl font-bold">{profile.name}</h1>
+          <p className="text-sm text-gray-600">{profile.email}</p>
+          <p className="mt-3 text-gray-700">{profile.bio || "No bio available."}</p>
+          {profile.learning_goals ? <p className="mt-2 text-sm text-slate-600">{profile.learning_goals}</p> : null}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(profile.preferred_topics || []).map((topic) => (
+              <span key={topic} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">#{topic}</span>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">

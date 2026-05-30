@@ -24,6 +24,37 @@ async def read_exams(request: Request, page: int = 1, limit: int = 20):
     return await exam_model.list_exams(db, page=page, limit=limit)
 
 
+@router.get("/export")
+async def export_exams(request: Request, current_user: dict = Depends(get_current_user)):
+    db = request.app.state.db
+    exams = await exam_model.list_exams(db, page=1, limit=1000, only_public=False)
+    return {"exams": exams}
+
+
+@router.post("/import", response_model=list[ExamOut])
+async def import_exams(request: Request, payload: dict, current_user: dict = Depends(get_current_user)):
+    db = request.app.state.db
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can import exams")
+    imported = []
+    for item in payload.get("exams", []):
+        exam = await exam_model.create_exam(
+            db,
+            user_id=current_user["id"],
+            title=item["title"],
+            description=item.get("description"),
+            duration_minutes=item["duration_minutes"],
+            total_marks=item["total_marks"],
+            is_public=item.get("is_public", False),
+            randomize_order=item.get("randomize_order", False),
+            randomize_options=item.get("randomize_options", False),
+            secure_mode=item.get("secure_mode", False),
+            questions=item.get("questions", []),
+        )
+        imported.append(exam)
+    return imported
+
+
 @router.get("/{exam_id}", response_model=ExamOut)
 async def read_exam(request: Request, exam_id: int, current_user: dict | None = Depends(get_current_user_optional)):
     db = request.app.state.db
@@ -62,37 +93,6 @@ async def save_attempt(request: Request, attempt_id: int, payload: AttemptSave, 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
     attempt["questions"] = attempt.get("question_order") or exam["questions"]
     return attempt
-
-
-@router.get("/export")
-async def export_exams(request: Request, current_user: dict = Depends(get_current_user)):
-    db = request.app.state.db
-    exams = await exam_model.list_exams(db, page=1, limit=1000, only_public=False)
-    return {"exams": exams}
-
-
-@router.post("/import", response_model=list[ExamOut])
-async def import_exams(request: Request, payload: dict, current_user: dict = Depends(get_current_user)):
-    db = request.app.state.db
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can import exams")
-    imported = []
-    for item in payload.get("exams", []):
-        exam = await exam_model.create_exam(
-            db,
-            user_id=current_user["id"],
-            title=item["title"],
-            description=item.get("description"),
-            duration_minutes=item["duration_minutes"],
-            total_marks=item["total_marks"],
-            is_public=item.get("is_public", False),
-            randomize_order=item.get("randomize_order", False),
-            randomize_options=item.get("randomize_options", False),
-            secure_mode=item.get("secure_mode", False),
-            questions=item.get("questions", []),
-        )
-        imported.append(exam)
-    return imported
 
 
 @router.post("/", response_model=ExamOut, status_code=status.HTTP_201_CREATED)
@@ -170,7 +170,9 @@ async def submit_exam(request: Request, exam_id: int, payload: AttemptSubmit, cu
     attempt = await exam_model.get_attempt(db, payload.attempt_id)
     if attempt is None or attempt["exam_id"] != exam_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attempt not found")
-    return await submit_exam_attempt(db, payload.attempt_id, current_user["id"], payload.time_taken_seconds, payload.answers)
+    submitted = await submit_exam_attempt(db, payload.attempt_id, current_user["id"], payload.time_taken_seconds, payload.answers)
+    submitted["questions"] = submitted.get("question_order") or []
+    return submitted
 
 
 @router.get("/{exam_id}/result/{attempt_id}", response_model=ResultOut)
@@ -181,6 +183,7 @@ async def read_exam_result(request: Request, exam_id: int, attempt_id: int, curr
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attempt not found")
     if current_user["role"] != "admin" and attempt["user_id"] != current_user["id"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this attempt")
+    attempt["questions"] = attempt.get("question_order") or []
     return attempt
 
 
@@ -202,6 +205,8 @@ async def generate_exam(request: Request, payload: ExamCreate, current_user: dic
         total_marks=payload.total_marks,
         is_public=payload.is_public,
         randomize_order=payload.randomize_order,
+        randomize_options=payload.randomize_options,
+        secure_mode=payload.secure_mode,
         questions=[question.model_dump() for question in payload.questions],
     )
     await notify_new_exam(db, exam)

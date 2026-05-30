@@ -15,6 +15,8 @@ async def generate_exam(
     total_marks: int,
     is_public: bool,
     randomize_order: bool,
+    randomize_options: bool,
+    secure_mode: bool,
     questions: list[dict[str, Any]],
 ) -> dict[str, Any]:
     # Stub exam generator: persist exam payload directly.
@@ -27,5 +29,7 @@ async def generate_exam(
         total_marks=total_marks,
         is_public=is_public,
         randomize_order=randomize_order,
+        randomize_options=randomize_options,
+        secure_mode=secure_mode,
         questions=questions,
     )
