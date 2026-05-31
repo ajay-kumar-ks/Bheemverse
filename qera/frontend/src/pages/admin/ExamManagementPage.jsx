@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api from "../../services/api";
+import api, { getApiErrorMessage } from "../../services/api";
 
 export default function ExamManagementPage() {
   const [exams, setExams] = useState([]);
@@ -16,7 +16,7 @@ export default function ExamManagementPage() {
       const res = await api.get("/admin/exams");
       setExams(res.data);
     } catch (err) {
-      setError("Unable to load exams.");
+      setError(getApiErrorMessage(err, "Unable to load exams."));
     } finally {
       setLoading(false);
     }
@@ -30,8 +30,8 @@ export default function ExamManagementPage() {
     try {
       await api.delete(`/admin/exams/${id}`);
       setExams((c) => c.filter((e) => e.id !== id));
-    } catch {
-      setError("Unable to delete exam.");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Unable to delete exam."));
     }
   };
 
@@ -47,7 +47,7 @@ export default function ExamManagementPage() {
       setDuration(30);
       await loadExams();
     } catch (err) {
-      setError("Unable to generate exam.");
+      setError(getApiErrorMessage(err, "Unable to generate exam."));
     }
   };
 

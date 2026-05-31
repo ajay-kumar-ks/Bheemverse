@@ -26,6 +26,14 @@ class UserProfileStats(BaseModel):
     accuracy: float = 0.0
 
 
+class BadgeOut(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    icon_url: Optional[str] = None
+    unlocked_at: Optional[str] = None
+
+
 class UserProfileOut(BaseModel):
     id: int
     name: str

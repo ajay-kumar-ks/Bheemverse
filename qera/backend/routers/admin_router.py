@@ -35,6 +35,25 @@ async def list_users(request: Request, current_user: dict = Depends(get_current_
     ]
 
 
+@router.get("/stats")
+async def get_admin_stats(request: Request, current_user: dict = Depends(get_current_user), _: dict = Depends(require_admin)):
+    db = request.app.state.db
+    
+    user_count = await db.execute("SELECT COUNT(*) FROM users")
+    question_count = await db.execute("SELECT COUNT(*) FROM questions")
+    exam_count = await db.execute("SELECT COUNT(*) FROM exams")
+    flagged_questions = await db.execute("SELECT COUNT(*) FROM questions WHERE is_flagged = 1")
+    flagged_comments = await db.execute("SELECT COUNT(*) FROM comments WHERE is_flagged = 1")
+    
+    return {
+        "total_users": (await user_count.fetchone())[0],
+        "total_questions": (await question_count.fetchone())[0],
+        "total_exams": (await exam_count.fetchone())[0],
+        "flagged_questions": (await flagged_questions.fetchone())[0],
+        "flagged_comments": (await flagged_comments.fetchone())[0],
+    }
+
+
 @router.put("/users/{user_id}/suspend")
 async def suspend_user(request: Request, user_id: int, current_user: dict = Depends(get_current_user), _: dict = Depends(require_admin)):
     db = request.app.state.db
@@ -87,6 +106,36 @@ async def list_flagged_questions(request: Request, current_user: dict = Depends(
         }
         for row in rows
     ]
+
+
+@router.get("/comments/flagged")
+async def list_flagged_comments(request: Request, current_user: dict = Depends(get_current_user), _: dict = Depends(require_admin)):
+    db = request.app.state.db
+    cursor = await db.execute(
+        "SELECT id, user_id, question_id, content, is_flagged, created_at FROM comments WHERE is_flagged = 1 ORDER BY created_at DESC"
+    )
+    rows = await cursor.fetchall()
+    return [
+        {
+            "id": row[0],
+            "user_id": row[1],
+            "question_id": row[2],
+            "content": row[3],
+            "is_flagged": bool(row[4]),
+            "created_at": row[5],
+        }
+        for row in rows
+    ]
+
+
+@router.put("/questions/{question_id}/unflag")
+async def unflag_question(request: Request, question_id: int, current_user: dict = Depends(get_current_user), _: dict = Depends(require_admin)):
+    db = request.app.state.db
+    cursor = await db.execute("UPDATE questions SET is_flagged = 0 WHERE id = ?", (question_id,))
+    await db.commit()
+    if cursor.rowcount == 0:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
+    return {"message": "Question unflagged"}
 
 
 @router.put("/comments/{comment_id}/unflag")

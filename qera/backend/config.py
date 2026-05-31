@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     SECRET_KEY: str = Field("changeme", env="SECRET_KEY")
     DB_PATH: str = Field("../database/qera.db", env="DB_PATH")
+    DATABASE_URL: str | None = Field(None, env="DATABASE_URL")
     ALLOWED_ORIGIN: str = Field("http://localhost:5173", env="ALLOWED_ORIGIN")
     DEBUG: bool = Field(True, env="DEBUG")
 

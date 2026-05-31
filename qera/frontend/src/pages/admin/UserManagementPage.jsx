@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api from "../../services/api";
+import api, { getApiErrorMessage } from "../../services/api";
 
 export default function UserManagementPage() {
   const [users, setUsers] = useState([]);
@@ -11,7 +11,7 @@ export default function UserManagementPage() {
       const response = await api.get("/admin/users");
       setUsers(response.data);
     } catch (err) {
-      setError("Unable to load user list.");
+      setError(getApiErrorMessage(err, "Unable to load user list."));
     } finally {
       setLoading(false);
     }
@@ -25,8 +25,8 @@ export default function UserManagementPage() {
     try {
       await api.delete(`/admin/users/${userId}`);
       setUsers((current) => current.filter((user) => user.id !== userId));
-    } catch {
-      setError("Unable to delete user.");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Unable to delete user."));
     }
   };
 

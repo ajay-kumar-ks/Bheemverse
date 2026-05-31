@@ -108,6 +108,7 @@ export default function DashboardPage() {
   const [recentQuestions, setRecentQuestions] = useState([])
   const [recentExams, setRecentExams] = useState([])
   const [progress, setProgress] = useState(null)
+  const [badges, setBadges] = useState([])
   const [loadError, setLoadError] = useState('')
   const [topicFilter, setTopicFilter] = useState('all')
   const [mistakeFilter, setMistakeFilter] = useState('all')
@@ -118,15 +119,17 @@ export default function DashboardPage() {
     async function load() {
       setLoadError('')
       try {
-        const [questionsRes, examsRes, progressRes] = await Promise.all([
+        const [questionsRes, examsRes, progressRes, badgesRes] = await Promise.all([
           api.get('/questions/', { params: { page: 1, limit: 5 } }),
           api.get('/exams/', { params: { page: 1, limit: 5 } }),
           api.get('/users/me/progress'),
+          api.get('/users/me/badges'),
         ])
         if (!cancelled) {
           setRecentQuestions(questionsRes.data ?? [])
           setRecentExams(examsRes.data ?? [])
           setProgress(progressRes.data)
+          setBadges(badgesRes.data ?? [])
         }
       } catch {
         if (!cancelled) {
@@ -179,6 +182,43 @@ export default function DashboardPage() {
         </div>
         <CompletionTrend items={progress?.completion_trend ?? []} />
       </div>
+
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <h2 className="text-lg font-semibold text-slate-900">Achievements</h2>
+          <span className="text-sm text-slate-500">Badges earned</span>
+        </div>
+        {!badges.length ? (
+          <EmptyState>You haven't earned any badges yet. Complete exams or add questions to unlock achievements.</EmptyState>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {badges.map((badge) => (
+              <div
+                key={badge.id}
+                className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-950/5 via-white to-slate-50 p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+              >
+                <div className="absolute right-4 top-4 h-12 w-12 rounded-full bg-slate-900/5 blur-xl opacity-80" />
+                <div className="relative flex items-center gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-slate-200 bg-white text-2xl text-indigo-700 shadow-sm">
+                    {badge.icon_url ? (
+                      <img src={badge.icon_url} alt={badge.name} className="h-12 w-12 rounded-full object-cover" />
+                    ) : (
+                      badge.name.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900">{badge.name}</p>
+                    <p className="mt-1 truncate text-xs text-slate-500">{badge.description || 'Achievement unlocked'}</p>
+                  </div>
+                </div>
+                {badge.unlocked_at ? (
+                  <div className="mt-4 text-[11px] uppercase tracking-wide text-slate-400">Unlocked {new Date(badge.unlocked_at).toLocaleDateString()}</div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <DifficultyAccuracy items={progress?.accuracy_by_difficulty ?? []} />

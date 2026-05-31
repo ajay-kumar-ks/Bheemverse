@@ -34,6 +34,7 @@ export default function MyProfilePage() {
     learning_goals: "",
     notification_preferences: { email: true, in_app: true, exam_reminders: true },
   });
+  const [badges, setBadges] = useState([]);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
@@ -56,6 +57,9 @@ export default function MyProfilePage() {
             exam_reminders: data.notification_preferences?.exam_reminders ?? true,
           },
         });
+
+        const badgesResponse = await api.get("/users/me/badges");
+        setBadges(badgesResponse.data || []);
       } catch {
         setError("Unable to load profile.");
       } finally {
@@ -239,6 +243,42 @@ export default function MyProfilePage() {
             <div>Exams Created: {profile.stats.exams_created}</div>
             <div>Questions Created: {profile.stats.questions_created}</div>
             <div>Accuracy: {profile.stats.accuracy?.toFixed(1)}%</div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold">Achievements</h2>
+          <div className="mt-4 space-y-3 text-sm text-slate-700">
+            {badges.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {badges.map((badge) => (
+                  <div
+                    key={badge.id}
+                    className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-950/5 via-white to-slate-50 p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+                  >
+                    <div className="absolute right-4 top-4 h-12 w-12 rounded-full bg-slate-900/5 blur-xl opacity-80" />
+                    <div className="relative flex items-center gap-4">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full border border-slate-200 bg-white text-2xl text-indigo-700 shadow-sm">
+                        {badge.icon_url ? (
+                          <img src={badge.icon_url} alt={badge.name} className="h-12 w-12 rounded-full object-cover" />
+                        ) : (
+                          badge.name.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-slate-900">{badge.name}</div>
+                        <div className="mt-1 truncate text-xs text-slate-500">{badge.description}</div>
+                        {badge.unlocked_at ? (
+                          <div className="mt-2 text-[11px] uppercase tracking-wide text-slate-400">Unlocked {new Date(badge.unlocked_at).toLocaleDateString()}</div>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-slate-500">No badges earned yet. Take exams and engage with the app to unlock achievements.</div>
+            )}
           </div>
         </div>
 

@@ -2,10 +2,10 @@ from typing import Any
 
 try:
     from backend.models import question_model, comment_model
-    from backend.services import ai_service, notification_service
+    from backend.services import ai_service, notification_service, achievement_service
 except ImportError:
     from models import question_model, comment_model
-    from services import ai_service, notification_service
+    from services import ai_service, notification_service, achievement_service
 
 
 async def create_question(
@@ -53,6 +53,7 @@ async def create_question(
     if question['is_public']:
         await notify_new_question(db, question)
 
+    await achievement_service.award_badges(db, user_id)
     question['duplicate_warning'] = duplicate_result if duplicate_result['is_duplicate'] else None
     return question
 
@@ -139,5 +140,5 @@ async def create_comment(db, question_id: int, user_id: int, content: str, paren
     return comment
 
 
-async def list_comments(db, question_id: int) -> list[dict[str, Any]]:
-    return await comment_model.get_comments_by_question(db, question_id)
+async def list_comments(db, question_id: int, sort_by: str = "newest") -> list[dict[str, Any]]:
+    return await comment_model.get_comments_by_question(db, question_id, sort_by=sort_by)

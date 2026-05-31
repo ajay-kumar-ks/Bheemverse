@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import api from "../../services/api";
+import api, { getApiErrorMessage } from "../../services/api";
 
 export default function ContentModerationPage() {
   const [comments, setComments] = useState([]);
@@ -11,7 +11,7 @@ export default function ContentModerationPage() {
       const response = await api.get("/admin/comments/flagged");
       setComments(response.data);
     } catch (err) {
-      setError("Unable to load flagged comments.");
+      setError(getApiErrorMessage(err, "Unable to load flagged comments."));
     } finally {
       setLoading(false);
     }
@@ -25,8 +25,8 @@ export default function ContentModerationPage() {
     try {
       await api.put(`/admin/comments/${id}/unflag`);
       await loadComments();
-    } catch {
-      setError("Unable to unflag comment.");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Unable to unflag comment."));
     }
   };
 
@@ -34,8 +34,8 @@ export default function ContentModerationPage() {
     try {
       await api.delete(`/admin/comments/${id}`);
       await loadComments();
-    } catch {
-      setError("Unable to delete comment.");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Unable to delete comment."));
     }
   };
 

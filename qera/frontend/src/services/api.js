@@ -53,6 +53,20 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+export function getApiErrorMessage(error, fallback = 'Something went wrong.') {
+  if (error.response?.status === 401) {
+    return 'Authentication required. Please sign in again.'
+  }
+  if (error.response?.status === 403) {
+    return 'Admin access required. Please sign in with an admin account.'
+  }
+  const detail = error.response?.data?.detail
+  if (typeof detail === 'string' && detail.trim()) {
+    return detail
+  }
+  return fallback
+}
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {

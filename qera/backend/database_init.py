@@ -2,14 +2,14 @@ import asyncio
 
 from fastapi import FastAPI
 
-from database import init_db, close_db
-from database import DB_PATH
+from database import init_db, close_db, DB_PATH, DATABASE_URL
 
 
 async def main() -> None:
     app = FastAPI()
     await init_db(app)
-    print(f"Database initialized at {DB_PATH}")
+    active_db = DATABASE_URL if DATABASE_URL else DB_PATH
+    print(f"Database initialized at {active_db}")
     await close_db(app)
 
 

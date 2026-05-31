@@ -6,10 +6,10 @@ from fastapi import HTTPException, status
 
 try:
     from backend.models import exam_model
-    from backend.services import leaderboard_service, notification_service
+    from backend.services import leaderboard_service, notification_service, achievement_service
 except ImportError:
     from models import exam_model
-    from services import leaderboard_service, notification_service
+    from services import leaderboard_service, notification_service, achievement_service
 
 
 async def score_exam(db, exam_id: int, answers: dict[str, Any]) -> dict[str, Any]:
@@ -124,6 +124,7 @@ async def submit_exam_attempt(db, attempt_id: int, user_id: int, time_taken_seco
                 "exam_attempt",
             )
 
+    await achievement_service.award_badges(db, user_id)
     return attempt
 
 

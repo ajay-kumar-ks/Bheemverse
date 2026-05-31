@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 try:
-    from backend.schemas.user_schema import UserProfileOut, UserUpdate
+    from backend.schemas.user_schema import BadgeOut, UserProfileOut, UserUpdate
     from backend.models import user_model
+    from backend.models.badge_model import get_user_badges
     from backend.models.notification_model import get_notifications_for_user, mark_notification_read, mark_all_notifications_read
     from backend.middlewares.auth import get_current_user
 except ImportError:
-    from schemas.user_schema import UserProfileOut, UserUpdate
+    from schemas.user_schema import BadgeOut, UserProfileOut, UserUpdate
     from models import user_model
+    from models.badge_model import get_user_badges
     from models.notification_model import get_notifications_for_user, mark_notification_read, mark_all_notifications_read
     from middlewares.auth import get_current_user
 
@@ -81,6 +83,18 @@ async def read_my_progress(request: Request, current_user: dict = Depends(get_cu
 async def read_my_notifications(request: Request, current_user: dict = Depends(get_current_user)):
     db = request.app.state.db
     return await get_notifications_for_user(db, current_user["id"])
+
+
+@router.get("/users/me/badges", response_model=list[BadgeOut])
+async def read_my_badges(request: Request, current_user: dict = Depends(get_current_user)):
+    db = request.app.state.db
+    return await get_user_badges(db, current_user["id"])
+
+
+@router.get("/users/{user_id}/badges", response_model=list[BadgeOut])
+async def read_user_badges(request: Request, user_id: int):
+    db = request.app.state.db
+    return await get_user_badges(db, user_id)
 
 
 @router.put("/users/me/notifications/{notification_id}/read")

@@ -91,6 +91,9 @@ class CommentOut(BaseModel):
     parent_id: Optional[int] = None
     content: str
     is_flagged: bool
+    upvotes_count: int = 0
+    is_helpful: bool = False
+    upvoted: bool = False
     created_at: str
     replies: List['CommentOut'] = []
 
