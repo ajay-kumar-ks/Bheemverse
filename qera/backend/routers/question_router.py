@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, status
+from fastapi.concurrency import run_in_threadpool
 from typing import Optional
 
 try:
@@ -48,6 +49,26 @@ async def create_new_question(request: Request, payload: QuestionCreate, current
         options=[option.model_dump() for option in payload.options],
     )
     return question
+
+
+try:
+    from backend.services.cloudinary_service import upload_to_cloudinary
+except ImportError:
+    from services.cloudinary_service import upload_to_cloudinary
+
+
+@router.post("/upload-media")
+async def upload_media(request: Request, file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    db = request.app.state.db
+    try:
+        file_bytes = await file.read()
+        upload_result = await run_in_threadpool(upload_to_cloudinary, file.filename, file_bytes, file.content_type)
+        return {
+            "url": upload_result["secure_url"],
+            "public_id": upload_result.get("public_id"),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
 
 
 @router.put("/{question_id}", response_model=QuestionOut)

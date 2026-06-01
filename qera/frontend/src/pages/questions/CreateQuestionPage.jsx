@@ -48,7 +48,15 @@ export default function CreateQuestionPage() {
   const [pendingPayload, setPendingPayload] = useState(null)
   const [duplicateInfo, setDuplicateInfo] = useState(null)
   const [tagInput, setTagInput] = useState('')
-
+  const [uploadTarget, setUploadTarget] = useState('image_url')
+  const [selectedUploadFile, setSelectedUploadFile] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [uploadedFields, setUploadedFields] = useState({
+    image_url: false,
+    media_url: false,
+    attachment_url: false,
+  })
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -77,7 +85,17 @@ export default function CreateQuestionPage() {
     return null
   }, [form.title])
 
-  const updateForm = (field, value) => setForm((prev) => ({ ...prev, [field]: value }))
+  const updateForm = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }))
+    if (['image_url', 'media_url', 'attachment_url'].includes(field) && !value) {
+      setUploadedFields((prev) => ({ ...prev, [field]: false }))
+    }
+  }
+
+  const clearUploadedField = (field) => {
+    setForm((prev) => ({ ...prev, [field]: '' }))
+    setUploadedFields((prev) => ({ ...prev, [field]: false }))
+  }
 
   const updateOption = (index, value) => {
     setForm((prev) => {
@@ -120,6 +138,28 @@ export default function CreateQuestionPage() {
   }
 
   const removeTag = (tag) => updateForm('tags', form.tags.filter((t) => t !== tag))
+
+  const uploadMediaFile = async () => {
+    if (!selectedUploadFile) {
+      setUploadError('Please select a file to upload.')
+      return
+    }
+    setUploading(true)
+    setUploadError('')
+    try {
+      const formData = new FormData()
+      formData.append('file', selectedUploadFile)
+      const { data } = await api.post('/questions/upload-media', formData)
+      updateForm(uploadTarget, data.url)
+      setUploadedFields((prev) => ({ ...prev, [uploadTarget]: true }))
+      setSelectedUploadFile(null)
+      setSuccess('File uploaded successfully.')
+    } catch (err) {
+      setUploadError(err.response?.data?.detail || 'Upload failed. Please check your Cloudinary settings.')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const buildPayload = () => ({
     title: form.title.trim(),
@@ -260,31 +300,107 @@ export default function CreateQuestionPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Question image URL</label>
-                <input
-                  value={form.image_url}
-                  onChange={(e) => updateForm('image_url', e.target.value)}
-                  placeholder="https://..."
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                />
+                <label className="block text-sm font-medium text-slate-700">Question image</label>
+                {uploadedFields.image_url ? (
+                  <div className="mt-1 flex items-center gap-3 rounded-lg border border-slate-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                    <span>Image uploaded</span>
+                    <button
+                      type="button"
+                      onClick={() => clearUploadedField('image_url')}
+                      className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-rose-700 shadow-sm hover:bg-rose-50"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    value={form.image_url}
+                    onChange={(e) => updateForm('image_url', e.target.value)}
+                    placeholder="https://..."
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  />
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Media URL</label>
-                <input
-                  value={form.media_url}
-                  onChange={(e) => updateForm('media_url', e.target.value)}
-                  placeholder="Video/audio link"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                />
+                <label className="block text-sm font-medium text-slate-700">Media</label>
+                {uploadedFields.media_url ? (
+                  <div className="mt-1 flex items-center gap-3 rounded-lg border border-slate-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                    <span>Media uploaded</span>
+                    <button
+                      type="button"
+                      onClick={() => clearUploadedField('media_url')}
+                      className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-rose-700 shadow-sm hover:bg-rose-50"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    value={form.media_url}
+                    onChange={(e) => updateForm('media_url', e.target.value)}
+                    placeholder="Video/audio link"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  />
+                )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Attachment URL</label>
-                <input
-                  value={form.attachment_url}
-                  onChange={(e) => updateForm('attachment_url', e.target.value)}
-                  placeholder="PDF or file link"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                />
+                <label className="block text-sm font-medium text-slate-700">Attachment</label>
+                {uploadedFields.attachment_url ? (
+                  <div className="mt-1 flex items-center gap-3 rounded-lg border border-slate-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                    <span>Attachment uploaded</span>
+                    <button
+                      type="button"
+                      onClick={() => clearUploadedField('attachment_url')}
+                      className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-rose-700 shadow-sm hover:bg-rose-50"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    value={form.attachment_url}
+                    onChange={(e) => updateForm('attachment_url', e.target.value)}
+                    placeholder="PDF or file link"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  />
+                )}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">Upload target</label>
+                  <select
+                    value={uploadTarget}
+                    onChange={(e) => setUploadTarget(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    <option value="image_url">Question image</option>
+                    <option value="media_url">Media file</option>
+                    <option value="attachment_url">Attachment</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700">Upload file to Cloudinary</label>
+                  <div className="mt-1 flex gap-2">
+                    <input
+                      type="file"
+                      accept="image/*,video/*,audio/*,.pdf"
+                      onChange={(e) => setSelectedUploadFile(e.target.files?.[0] ?? null)}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={uploadMediaFile}
+                      disabled={uploading}
+                      className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-40"
+                    >
+                      {uploading ? 'Uploading…' : 'Upload'}
+                    </button>
+                  </div>
+                  {uploadError ? <p className="mt-2 text-sm text-rose-600">{uploadError}</p> : null}
+                  <p className="mt-2 text-sm text-slate-500">Uploaded files will be stored in Cloudinary and the resulting URL will populate the selected field.</p>
+                </div>
               </div>
             </div>
             <div>
