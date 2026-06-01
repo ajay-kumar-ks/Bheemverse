@@ -40,7 +40,7 @@ export default function ExamManagementPage() {
     setError(null);
     try {
       const payload = { topic, count: Number(count), difficulty, duration: Number(duration) };
-      await api.post(`/exams/generate`, payload);
+      await api.post(`/admin/exams/generate`, payload);
       setTopic("");
       setCount(5);
       setDifficulty("mixed");

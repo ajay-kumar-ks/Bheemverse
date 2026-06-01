@@ -23,6 +23,8 @@ import AdminDashboardPage from './pages/admin/AdminDashboardPage'
 import UserManagementPage from './pages/admin/UserManagementPage'
 import ContentModerationPage from './pages/admin/ContentModerationPage'
 import ExamManagementPage from './pages/admin/ExamManagementPage'
+import AdminAnalyticsPage from './pages/admin/AdminAnalyticsPage'
+import AdminApprovalPage from './pages/admin/AdminApprovalPage'
 import { useAuth } from './context/AuthContext'
 
 function HomeRedirect() {
@@ -70,6 +72,8 @@ function App() {
           <Route path="/admin/users" element={<UserManagementPage />} />
           <Route path="/admin/moderation" element={<ContentModerationPage />} />
           <Route path="/admin/exams" element={<ExamManagementPage />} />
+          <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+          <Route path="/admin/approvals" element={<AdminApprovalPage />} />
         </Route>
       </Route>
 

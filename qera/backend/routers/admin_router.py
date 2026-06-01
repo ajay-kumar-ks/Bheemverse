@@ -4,10 +4,12 @@ try:
     from backend.services import ai_service
     from backend.middlewares.auth import get_current_user
     from backend.middlewares.role import require_admin
+    from backend.models import exam_model
 except ImportError:
     from services import ai_service
     from middlewares.auth import get_current_user
     from middlewares.role import require_admin
+    from models import exam_model
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -203,6 +205,103 @@ async def list_exams(request: Request, current_user: dict = Depends(get_current_
     ]
 
 
+@router.post("/exams/generate")
+async def generate_admin_exam(request: Request, current_user: dict = Depends(get_current_user), _: dict = Depends(require_admin)):
+    db = request.app.state.db
+    body = await request.json()
+    topic = (body.get("topic") or "").strip()
+    count = int(body.get("count", 5))
+    difficulty = body.get("difficulty", "mixed")
+    duration_minutes = int(body.get("duration", 30))
+
+    if count < 1:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Question count must be at least 1")
+    if duration_minutes < 5:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Duration must be at least 5 minutes")
+
+    query = "SELECT id FROM questions WHERE is_public = 1 AND is_flagged = 0"
+    params: list = []
+    if difficulty != "mixed":
+        query += " AND difficulty = ?"
+        params.append(difficulty)
+    if topic:
+        query += " AND (title LIKE ? OR description LIKE ? OR type LIKE ? OR explanation LIKE ?)"
+        search_value = f"%{topic}%"
+        params.extend([search_value, search_value, search_value, search_value])
+    query += " ORDER BY RANDOM() LIMIT ?"
+    params.append(count)
+
+    cursor = await db.execute(query, tuple(params))
+    rows = await cursor.fetchall()
+    if not rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No matching questions found for exam generation")
+
+    questions = [
+        {"question_id": row[0], "marks": 1, "question_order": idx + 1}
+        for idx, row in enumerate(rows)
+    ]
+    title = f"Generated Exam: {topic or 'Mixed Topics'}"
+    description = f"Auto-generated exam for {topic or 'mixed topics'} at {difficulty} difficulty."
+    total_marks = sum(q["marks"] for q in questions)
+
+    exam = await exam_model.create_exam(
+        db,
+        user_id=current_user["id"],
+        title=title,
+        description=description,
+        duration_minutes=duration_minutes,
+        total_marks=total_marks,
+        is_public=True,
+        randomize_order=False,
+        randomize_options=False,
+        secure_mode=False,
+        questions=questions,
+    )
+    return exam
+
+
+@router.get("/analytics/overview")
+async def get_analytics_overview(request: Request, current_user: dict = Depends(get_current_user), _: dict = Depends(require_admin)):
+    db = request.app.state.db
+    
+    active_users_cursor = await db.execute("SELECT COUNT(DISTINCT user_id) FROM exam_attempts WHERE submitted_at >= datetime('now', '-30 days')")
+    active_users = (await active_users_cursor.fetchone())[0]
+    
+    questions_created_cursor = await db.execute("SELECT COUNT(*) FROM questions WHERE created_at >= datetime('now', '-30 days')")
+    questions_created = (await questions_created_cursor.fetchone())[0]
+    
+    exams_taken_cursor = await db.execute("SELECT COUNT(*) FROM exam_attempts WHERE submitted_at >= datetime('now', '-30 days')")
+    exams_taken = (await exams_taken_cursor.fetchone())[0]
+    
+    avg_score_cursor = await db.execute("SELECT AVG(CAST(score AS FLOAT) / NULLIF(total_marks, 0) * 100) FROM exam_attempts WHERE submitted_at >= datetime('now', '-30 days')")
+    avg_score_row = await avg_score_cursor.fetchone()
+    avg_score = float((avg_score_row[0] if avg_score_row else 0) or 0)
+    
+    return {
+        "active_users_30d": active_users,
+        "questions_created_30d": questions_created,
+        "exams_taken_30d": exams_taken,
+        "average_score_30d": round(avg_score, 2),
+    }
+
+
+@router.get("/analytics/content-moderation")
+async def get_moderation_stats(request: Request, current_user: dict = Depends(get_current_user), _: dict = Depends(require_admin)):
+    db = request.app.state.db
+    
+    flagged_questions = await db.execute("SELECT COUNT(*) FROM questions WHERE is_flagged = 1")
+    flagged_comments = await db.execute("SELECT COUNT(*) FROM comments WHERE is_flagged = 1")
+    total_questions = await db.execute("SELECT COUNT(*) FROM questions")
+    total_comments = await db.execute("SELECT COUNT(*) FROM comments")
+    
+    return {
+        "flagged_questions": (await flagged_questions.fetchone())[0],
+        "total_questions": (await total_questions.fetchone())[0],
+        "flagged_comments": (await flagged_comments.fetchone())[0],
+        "total_comments": (await total_comments.fetchone())[0],
+    }
+
+
 @router.post("/moderate/batch")
 async def moderate_batch(request: Request, current_user: dict = Depends(get_current_user), _: dict = Depends(require_admin)):
     db = request.app.state.db
@@ -229,3 +328,94 @@ async def moderate_batch(request: Request, current_user: dict = Depends(get_curr
 
     await db.commit()
     return {"flagged_count": len(flagged), "flagged_items": flagged}
+
+
+@router.get("/approvals/pending")
+async def list_pending_approvals(request: Request, current_user: dict = Depends(get_current_user), _: dict = Depends(require_admin)):
+    """Get all pending content approvals."""
+    db = request.app.state.db
+    cursor = await db.execute(
+        """SELECT id, content_type, content_id, submitted_by, status, admin_notes, created_at 
+           FROM pending_approvals 
+           WHERE status = 'pending'
+           ORDER BY created_at ASC"""
+    )
+    rows = await cursor.fetchall()
+    return [
+        {
+            "id": row[0],
+            "content_type": row[1],
+            "content_id": row[2],
+            "submitted_by": row[3],
+            "status": row[4],
+            "admin_notes": row[5],
+            "created_at": row[6],
+        }
+        for row in rows
+    ]
+
+
+@router.post("/approvals/{approval_id}/approve")
+async def approve_content(request: Request, approval_id: int, current_user: dict = Depends(get_current_user), _: dict = Depends(require_admin)):
+    """Approve pending content."""
+    db = request.app.state.db
+    body = await request.json()
+    admin_notes = body.get("admin_notes", "")
+
+    # Get approval record
+    approval_cursor = await db.execute(
+        "SELECT content_type, content_id FROM pending_approvals WHERE id = ?", (approval_id,)
+    )
+    approval = await approval_cursor.fetchone()
+    if not approval:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
+
+    content_type, content_id = approval[0], approval[1]
+
+    # Update approval status
+    await db.execute(
+        "UPDATE pending_approvals SET status = 'approved', admin_id = ?, admin_notes = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_user["id"], admin_notes, approval_id),
+    )
+
+    # Update content status (publish if it was draft)
+    if content_type == "question":
+        await db.execute("UPDATE questions SET requires_approval = 0 WHERE id = ?", (content_id,))
+    elif content_type == "exam":
+        await db.execute("UPDATE exams SET requires_approval = 0 WHERE id = ?", (content_id,))
+
+    await db.commit()
+    return {"message": f"{content_type} approved successfully"}
+
+
+@router.post("/approvals/{approval_id}/reject")
+async def reject_content(request: Request, approval_id: int, current_user: dict = Depends(get_current_user), _: dict = Depends(require_admin)):
+    """Reject pending content."""
+    db = request.app.state.db
+    body = await request.json()
+    admin_notes = body.get("admin_notes", "")
+
+    # Get approval record
+    approval_cursor = await db.execute(
+        "SELECT content_type, content_id FROM pending_approvals WHERE id = ?", (approval_id,)
+    )
+    approval = await approval_cursor.fetchone()
+    if not approval:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approval not found")
+
+    content_type, content_id = approval[0], approval[1]
+
+    # Update approval status
+    await db.execute(
+        "UPDATE pending_approvals SET status = 'rejected', admin_id = ?, admin_notes = ?, reviewed_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_user["id"], admin_notes, approval_id),
+    )
+
+    # Delete rejected content or mark as archived
+    if content_type == "question":
+        await db.execute("DELETE FROM questions WHERE id = ?", (content_id,))
+    elif content_type == "exam":
+        await db.execute("DELETE FROM exams WHERE id = ?", (content_id,))
+
+    await db.commit()
+    return {"message": f"{content_type} rejected and deleted"}
