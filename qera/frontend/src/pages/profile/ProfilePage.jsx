@@ -66,7 +66,14 @@ export default function ProfilePage() {
                 <div className="mt-3 grid gap-3">
                   {profile.recent_questions.map((question) => (
                     <div key={question.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm transition hover:bg-white">
-                      <div className="font-medium text-slate-900">{question.title}</div>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-medium text-slate-900">{question.title}</div>
+                        {question.status && question.status !== "approved" ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">
+                            {question.status}
+                          </span>
+                        ) : null}
+                      </div>
                       <div className="mt-1 text-xs text-slate-500">Difficulty: {question.difficulty}</div>
                     </div>
                   ))}
@@ -82,7 +89,14 @@ export default function ProfilePage() {
                 <div className="mt-3 grid gap-3">
                   {profile.recent_exams.map((exam) => (
                     <div key={exam.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm transition hover:bg-white">
-                      <div className="font-medium text-slate-900">{exam.title}</div>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-medium text-slate-900">{exam.title}</div>
+                        {exam.status && exam.status !== "approved" ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">
+                            {exam.status}
+                          </span>
+                        ) : null}
+                      </div>
                       <div className="mt-1 text-xs text-slate-500">Marks: {exam.total_marks} • Duration: {exam.duration_minutes} mins</div>
                     </div>
                   ))}

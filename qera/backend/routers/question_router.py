@@ -47,6 +47,7 @@ async def create_new_question(request: Request, payload: QuestionCreate, current
         is_public=payload.is_public,
         tags=payload.tags,
         options=[option.model_dump() for option in payload.options],
+        requires_approval=current_user["role"] != "admin",
     )
     return question
 
@@ -74,7 +75,7 @@ async def upload_media(request: Request, file: UploadFile = File(...), current_u
 @router.put("/{question_id}", response_model=QuestionOut)
 async def edit_question(request: Request, question_id: int, payload: QuestionUpdate, current_user: dict = Depends(get_current_user)):
     db = request.app.state.db
-    question = await get_question(db, question_id)
+    question = await get_question(db, question_id, current_user_id=current_user["id"])
     if question is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
     if current_user["role"] != "admin" and question["user_id"] != current_user["id"]:
@@ -103,7 +104,7 @@ async def edit_question(request: Request, question_id: int, payload: QuestionUpd
 @router.delete("/{question_id}")
 async def remove_question(request: Request, question_id: int, current_user: dict = Depends(get_current_user)):
     db = request.app.state.db
-    question = await get_question(db, question_id)
+    question = await get_question(db, question_id, current_user_id=current_user["id"])
     if question is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
     if current_user["role"] != "admin" and question["user_id"] != current_user["id"]:

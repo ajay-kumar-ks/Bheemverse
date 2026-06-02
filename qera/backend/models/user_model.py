@@ -135,23 +135,60 @@ async def get_user_profile(db, user_id: int) -> Optional[dict]:
     rank_row = await cursor.fetchone()
     global_rank = int(rank_row[0]) if rank_row and rank_row[0] is not None else None
 
-    cursor = await db.execute(
-        "SELECT id, title, difficulty, created_at FROM questions WHERE user_id = ? ORDER BY created_at DESC LIMIT 5",
-        (user_id,),
-    )
-    recent_questions = [
-        {"id": row[0], "title": row[1], "difficulty": row[2], "created_at": row[3]}
-        for row in await cursor.fetchall()
-    ]
+    # Try to include approval status; fall back if schema isn't migrated.
+    try:
+        cursor = await db.execute(
+            """
+            SELECT q.id, q.title, q.difficulty, q.created_at,
+                   CASE WHEN q.requires_approval = 0 THEN 'approved' ELSE COALESCE(pa.status, 'pending') END AS status
+            FROM questions q
+            LEFT JOIN pending_approvals pa ON pa.content_type = 'question' AND pa.content_id = q.id
+            WHERE q.user_id = ?
+            ORDER BY q.created_at DESC
+            LIMIT 5
+            """,
+            (user_id,),
+        )
+        recent_questions = [
+            {"id": row[0], "title": row[1], "difficulty": row[2], "created_at": row[3], "status": row[4]}
+            for row in await cursor.fetchall()
+        ]
+    except Exception:
+        cursor = await db.execute(
+            "SELECT id, title, difficulty, created_at FROM questions WHERE user_id = ? ORDER BY created_at DESC LIMIT 5",
+            (user_id,),
+        )
+        recent_questions = [
+            {"id": row[0], "title": row[1], "difficulty": row[2], "created_at": row[3], "status": "approved"}
+            for row in await cursor.fetchall()
+        ]
 
-    cursor = await db.execute(
-        "SELECT id, title, duration_minutes, total_marks, created_at FROM exams WHERE user_id = ? ORDER BY created_at DESC LIMIT 5",
-        (user_id,),
-    )
-    recent_exams = [
-        {"id": row[0], "title": row[1], "duration_minutes": row[2], "total_marks": row[3], "created_at": row[4]}
-        for row in await cursor.fetchall()
-    ]
+    try:
+        cursor = await db.execute(
+            """
+            SELECT e.id, e.title, e.duration_minutes, e.total_marks, e.created_at,
+                   CASE WHEN e.requires_approval = 0 THEN 'approved' ELSE COALESCE(pa.status, 'pending') END AS status
+            FROM exams e
+            LEFT JOIN pending_approvals pa ON pa.content_type = 'exam' AND pa.content_id = e.id
+            WHERE e.user_id = ?
+            ORDER BY e.created_at DESC
+            LIMIT 5
+            """,
+            (user_id,),
+        )
+        recent_exams = [
+            {"id": row[0], "title": row[1], "duration_minutes": row[2], "total_marks": row[3], "created_at": row[4], "status": row[5]}
+            for row in await cursor.fetchall()
+        ]
+    except Exception:
+        cursor = await db.execute(
+            "SELECT id, title, duration_minutes, total_marks, created_at FROM exams WHERE user_id = ? ORDER BY created_at DESC LIMIT 5",
+            (user_id,),
+        )
+        recent_exams = [
+            {"id": row[0], "title": row[1], "duration_minutes": row[2], "total_marks": row[3], "created_at": row[4], "status": "approved"}
+            for row in await cursor.fetchall()
+        ]
 
     profile = {
         "id": user["id"],
@@ -206,7 +243,14 @@ async def get_user_bookmarks(db, user_id: int) -> list[dict]:
 
 async def get_user_questions(db, user_id: int) -> list[dict]:
     cursor = await db.execute(
-        "SELECT id, title, difficulty, created_at FROM questions WHERE user_id = ? ORDER BY created_at DESC",
+        """
+        SELECT q.id, q.title, q.difficulty, q.created_at,
+               CASE WHEN q.requires_approval = 0 THEN 'approved' ELSE COALESCE(pa.status, 'pending') END AS status
+        FROM questions q
+        LEFT JOIN pending_approvals pa ON pa.content_type = 'question' AND pa.content_id = q.id
+        WHERE q.user_id = ?
+        ORDER BY q.created_at DESC
+        """,
         (user_id,),
     )
     rows = await cursor.fetchall()
@@ -216,6 +260,7 @@ async def get_user_questions(db, user_id: int) -> list[dict]:
             "title": row[1],
             "difficulty": row[2],
             "created_at": row[3],
+            "status": row[4],
         }
         for row in rows
     ]
@@ -223,7 +268,14 @@ async def get_user_questions(db, user_id: int) -> list[dict]:
 
 async def get_user_exams(db, user_id: int) -> list[dict]:
     cursor = await db.execute(
-        "SELECT id, title, duration_minutes, total_marks, created_at FROM exams WHERE user_id = ? ORDER BY created_at DESC",
+        """
+        SELECT e.id, e.title, e.duration_minutes, e.total_marks, e.created_at,
+               CASE WHEN e.requires_approval = 0 THEN 'approved' ELSE COALESCE(pa.status, 'pending') END AS status
+        FROM exams e
+        LEFT JOIN pending_approvals pa ON pa.content_type = 'exam' AND pa.content_id = e.id
+        WHERE e.user_id = ?
+        ORDER BY e.created_at DESC
+        """,
         (user_id,),
     )
     rows = await cursor.fetchall()
@@ -234,6 +286,7 @@ async def get_user_exams(db, user_id: int) -> list[dict]:
             "duration_minutes": row[2],
             "total_marks": row[3],
             "created_at": row[4],
+            "status": row[5],
         }
         for row in rows
     ]

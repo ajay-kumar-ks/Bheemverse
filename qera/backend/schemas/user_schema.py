@@ -8,6 +8,7 @@ class UserQuestionMini(BaseModel):
     title: str
     difficulty: str
     created_at: str
+    status: str = "approved"
 
 
 class UserExamMini(BaseModel):
@@ -16,6 +17,7 @@ class UserExamMini(BaseModel):
     duration_minutes: int
     total_marks: int
     created_at: str
+    status: str = "approved"
 
 
 class UserProfileStats(BaseModel):

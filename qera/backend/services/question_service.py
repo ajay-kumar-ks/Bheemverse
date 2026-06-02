@@ -23,6 +23,7 @@ async def create_question(
     is_public: bool,
     tags: list[str] | None,
     options: list[dict[str, Any]] | None,
+    requires_approval: bool = False,
 ) -> dict[str, Any]:
     tags = tags or []
     options = options or []
@@ -48,9 +49,10 @@ async def create_question(
         is_public=is_public,
         tag_names=tags,
         options=options,
+        requires_approval=requires_approval,
     )
 
-    if question['is_public']:
+    if question['is_public'] and not question.get('requires_approval', False):
         await notify_new_question(db, question)
 
     await achievement_service.award_badges(db, user_id)

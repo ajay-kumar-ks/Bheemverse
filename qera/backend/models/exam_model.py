@@ -5,6 +5,32 @@ import json
 def _row_to_exam(row) -> Optional[dict]:
     if row is None:
         return None
+
+    if len(row) > 13:
+        # full query with approval status
+        requires_approval = bool(row[10])
+        approval_status = row[13] if row[13] is not None else ("pending" if requires_approval else "approved")
+        created_at = row[11]
+        updated_at = row[12]
+    elif len(row) == 13:
+        # query with requires_approval but no status column
+        requires_approval = bool(row[10])
+        approval_status = "pending" if requires_approval else "approved"
+        created_at = row[11]
+        updated_at = row[12]
+    elif len(row) == 12:
+        # legacy query without approval columns
+        requires_approval = False
+        approval_status = "approved"
+        created_at = row[10]
+        updated_at = row[11]
+    else:
+        # older legacy query shape
+        requires_approval = False
+        approval_status = "approved"
+        created_at = row[8] if len(row) > 8 else None
+        updated_at = row[9] if len(row) > 9 else None
+
     return {
         "id": row[0],
         "user_id": row[1],
@@ -16,8 +42,10 @@ def _row_to_exam(row) -> Optional[dict]:
         "randomize_order": bool(row[7]),
         "randomize_options": bool(row[8]) if len(row) > 8 else False,
         "secure_mode": bool(row[9]) if len(row) > 9 else False,
-        "created_at": row[10] if len(row) > 10 else row[8],
-        "updated_at": row[11] if len(row) > 11 else row[9],
+        "requires_approval": requires_approval,
+        "approval_status": approval_status,
+        "created_at": created_at,
+        "updated_at": updated_at,
     }
 
 
@@ -58,23 +86,51 @@ async def create_exam(
     randomize_options: bool,
     secure_mode: bool,
     questions: list[dict[str, Any]],
+    requires_approval: bool = False,
 ) -> dict:
-    cursor = await db.execute(
-        "INSERT INTO exams (user_id, title, description, duration_minutes, total_marks, is_public, randomize_order, randomize_options, secure_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (
-            user_id,
-            title,
-            description,
-            duration_minutes,
-            total_marks,
-            int(is_public),
-            int(randomize_order),
-            int(randomize_options),
-            int(secure_mode),
-        ),
-    )
+    # Try to insert the new column; fall back to legacy INSERT if missing.
+    try:
+        cursor = await db.execute(
+            "INSERT INTO exams (user_id, title, description, duration_minutes, total_marks, is_public, randomize_order, randomize_options, secure_mode, requires_approval) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                user_id,
+                title,
+                description,
+                duration_minutes,
+                total_marks,
+                int(is_public),
+                int(randomize_order),
+                int(randomize_options),
+                int(secure_mode),
+                int(requires_approval),
+            ),
+        )
+    except Exception:
+        cursor = await db.execute(
+            "INSERT INTO exams (user_id, title, description, duration_minutes, total_marks, is_public, randomize_order, randomize_options, secure_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                user_id,
+                title,
+                description,
+                duration_minutes,
+                total_marks,
+                int(is_public),
+                int(randomize_order),
+                int(randomize_options),
+                int(secure_mode),
+            ),
+        )
     exam_id = cursor.lastrowid
     await db.commit()
+
+    if requires_approval:
+        try:
+            await db.execute(
+                "INSERT INTO pending_approvals (content_type, content_id, submitted_by) VALUES ('exam', ?, ?)",
+                (exam_id, user_id),
+            )
+        except Exception:
+            pass
 
     for index, question in enumerate(questions, start=1):
         order = question.get("question_order") or index
@@ -86,30 +142,69 @@ async def create_exam(
     return await get_exam_by_id(db, exam_id)
 
 
-async def get_exam_by_id(db, exam_id: int) -> Optional[dict]:
-    cursor = await db.execute(
-        "SELECT id, user_id, title, description, duration_minutes, total_marks, is_public, randomize_order, randomize_options, secure_mode, created_at, updated_at FROM exams WHERE id = ?",
-        (exam_id,),
-    )
-    row = await cursor.fetchone()
-    exam = _row_to_exam(row)
-    if exam is None:
-        return None
+async def get_exam_by_id(db, exam_id: int, current_user_id: int | None = None) -> Optional[dict]:
+    current_user_id = current_user_id if current_user_id is not None else -1
+    # Prefer SELECT that includes approval info; fall back to legacy SELECT
+    try:
+        cursor = await db.execute(
+            """
+            SELECT id, user_id, title, description, duration_minutes, total_marks, is_public, randomize_order,
+                   randomize_options, secure_mode, requires_approval, created_at, updated_at,
+                   pa.status
+            FROM exams
+            LEFT JOIN pending_approvals pa ON pa.content_type = 'exam' AND pa.content_id = exams.id
+            WHERE id = ?
+            """,
+            (exam_id,),
+        )
+        row = await cursor.fetchone()
+        exam = _row_to_exam(row)
+        if exam is None:
+            return None
+        if exam["requires_approval"] and exam["user_id"] != current_user_id:
+            return None
+    except Exception:
+        cursor = await db.execute(
+            "SELECT id, user_id, title, description, duration_minutes, total_marks, is_public, randomize_order, randomize_options, secure_mode, created_at, updated_at FROM exams WHERE id = ?",
+            (exam_id,),
+        )
+        row = await cursor.fetchone()
+        exam = _row_to_exam(row)
+        if exam is None:
+            return None
+        exam["requires_approval"] = False
     exam["questions"] = await _get_exam_questions(db, exam_id)
     return exam
 
 
 async def list_exams(db, page: int = 1, limit: int = 20, only_public: bool = True) -> list[dict]:
     offset = (page - 1) * limit
-    query = "SELECT id, user_id, title, description, duration_minutes, total_marks, is_public, randomize_order, randomize_options, secure_mode, created_at, updated_at FROM exams"
-    params: list = []
-    if only_public:
-        query += " WHERE is_public = 1"
-    query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-    params.extend([limit, offset])
-    cursor = await db.execute(query, tuple(params))
-    rows = await cursor.fetchall()
-    exams = [_row_to_exam(row) for row in rows]
+    try:
+        query = """
+            SELECT id, user_id, title, description, duration_minutes, total_marks, is_public, randomize_order,
+                   randomize_options, secure_mode, requires_approval, created_at, updated_at,
+                   pa.status
+            FROM exams
+            LEFT JOIN pending_approvals pa ON pa.content_type = 'exam' AND pa.content_id = exams.id
+        """
+        params: list = []
+        if only_public:
+            query += " WHERE is_public = 1 AND requires_approval = 0"
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        cursor = await db.execute(query, tuple(params))
+        rows = await cursor.fetchall()
+        exams = [_row_to_exam(row) for row in rows]
+    except Exception:
+        query = "SELECT id, user_id, title, description, duration_minutes, total_marks, is_public, randomize_order, randomize_options, secure_mode, created_at, updated_at FROM exams"
+        params: list = []
+        if only_public:
+            query += " WHERE is_public = 1"
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        cursor = await db.execute(query, tuple(params))
+        rows = await cursor.fetchall()
+        exams = [_row_to_exam(row) for row in rows]
     for exam in exams:
         exam["questions"] = await _get_exam_questions(db, exam["id"])
     return exams
@@ -176,6 +271,7 @@ async def update_exam(
 
 async def delete_exam(db, exam_id: int) -> None:
     await db.execute("DELETE FROM exams WHERE id = ?", (exam_id,))
+    await db.execute("DELETE FROM pending_approvals WHERE content_type = 'exam' AND content_id = ?", (exam_id,))
     await db.commit()
 
 

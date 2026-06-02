@@ -58,7 +58,7 @@ async def import_exams(request: Request, payload: dict, current_user: dict = Dep
 @router.get("/{exam_id}", response_model=ExamOut)
 async def read_exam(request: Request, exam_id: int, current_user: dict | None = Depends(get_current_user_optional)):
     db = request.app.state.db
-    exam = await exam_model.get_exam_by_id(db, exam_id)
+    exam = await exam_model.get_exam_by_id(db, exam_id, current_user_id=current_user and current_user.get("id"))
     if exam is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exam not found")
     if exam["secure_mode"] and (current_user is None or (current_user["role"] != "admin" and current_user["id"] != exam["user_id"])):
@@ -110,8 +110,10 @@ async def create_exam(request: Request, payload: ExamCreate, current_user: dict 
         randomize_options=payload.randomize_options,
         secure_mode=payload.secure_mode,
         questions=[question.model_dump() for question in payload.questions],
+        requires_approval=current_user["role"] != "admin",
     )
-    await notify_new_exam(db, exam)
+    if not exam.get("requires_approval", False):
+        await notify_new_exam(db, exam)
     return exam
 
 

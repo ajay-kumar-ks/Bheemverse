@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Optional
 def _row_to_question(row) -> Optional[dict]:
     if row is None:
         return None
+    requires_approval = bool(row[19]) if len(row) > 19 else False
+    approval_status = row[20] if len(row) > 20 and row[20] is not None else ("pending" if requires_approval else "approved")
     return {
         "id": row[0],
         "user_id": row[1],
@@ -24,6 +26,8 @@ def _row_to_question(row) -> Optional[dict]:
         "image_url": row[16] if len(row) > 16 else None,
         "media_url": row[17] if len(row) > 17 else None,
         "attachment_url": row[18] if len(row) > 18 else None,
+        "requires_approval": requires_approval,
+        "approval_status": approval_status,
     }
 
 
@@ -70,19 +74,70 @@ async def create_question(
     is_public: bool,
     tag_names: list[str],
     options: list[dict[str, Any]],
+    requires_approval: bool = False,
 ) -> dict:
-    cursor = await db.execute(
-        """
-        INSERT INTO questions (
-            user_id, title, description, type, correct_answer, difficulty, explanation,
-            image_url, media_url, attachment_url, is_public
+    # Try an INSERT that includes the new column; if the DB hasn't been migrated
+    # yet, fall back to the original INSERT without the column to avoid crashing.
+    try:
+        cursor = await db.execute(
+            """
+            INSERT INTO questions (
+                user_id, title, description, type, correct_answer, difficulty, explanation,
+                image_url, media_url, attachment_url, is_public, requires_approval
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                user_id,
+                title,
+                description,
+                type,
+                correct_answer,
+                difficulty,
+                explanation,
+                image_url,
+                media_url,
+                attachment_url,
+                int(is_public),
+                int(requires_approval),
+            ),
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (user_id, title, description, type, correct_answer, difficulty, explanation, image_url, media_url, attachment_url, int(is_public)),
-    )
+    except Exception:
+        cursor = await db.execute(
+            """
+            INSERT INTO questions (
+                user_id, title, description, type, correct_answer, difficulty, explanation,
+                image_url, media_url, attachment_url, is_public
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                user_id,
+                title,
+                description,
+                type,
+                correct_answer,
+                difficulty,
+                explanation,
+                image_url,
+                media_url,
+                attachment_url,
+                int(is_public),
+            ),
+        )
     question_id = cursor.lastrowid
     await db.commit()
+
+    # Try to insert a pending_approvals row if required; ignore failures if
+    # the migrations haven't been applied yet.
+    if requires_approval:
+        try:
+            await db.execute(
+                "INSERT INTO pending_approvals (content_type, content_id, submitted_by) VALUES ('question', ?, ?)",
+                (question_id, user_id),
+            )
+        except Exception:
+            pass
 
     for tag_name in tag_names:
         tag_id = await _get_or_create_tag_id(db, tag_name.strip())
@@ -103,24 +158,52 @@ async def create_question(
 
 async def get_question_by_id(db, question_id: int, current_user_id: int | None = None) -> Optional[dict]:
     current_user_id = current_user_id if current_user_id is not None else -1
-    cursor = await db.execute(
-        """
-        SELECT q.id, q.user_id, q.title, q.description, q.type, q.correct_answer, q.difficulty,
-               q.explanation, q.is_public, q.is_flagged, q.likes_count, q.created_at, q.updated_at,
-               u.name,
-               EXISTS(SELECT 1 FROM question_likes l WHERE l.user_id = ? AND l.question_id = q.id) AS liked,
-               EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = ? AND b.question_id = q.id) AS bookmarked,
-               q.image_url, q.media_url, q.attachment_url
-        FROM questions q
-        JOIN users u ON u.id = q.user_id
-        WHERE q.id = ?
-        """,
-        (current_user_id, current_user_id, question_id),
-    )
-    row = await cursor.fetchone()
-    question = _row_to_question(row)
-    if question is None:
-        return None
+    # Try the new SELECT that includes approval columns; if it fails (older DB
+    # schema), fall back to the legacy SELECT and mark as approved by default.
+    try:
+        cursor = await db.execute(
+            """
+            SELECT q.id, q.user_id, q.title, q.description, q.type, q.correct_answer, q.difficulty,
+                   q.explanation, q.is_public, q.is_flagged, q.likes_count, q.created_at, q.updated_at,
+                   u.name,
+                   EXISTS(SELECT 1 FROM question_likes l WHERE l.user_id = ? AND l.question_id = q.id) AS liked,
+                   EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = ? AND b.question_id = q.id) AS bookmarked,
+                   q.image_url, q.media_url, q.attachment_url, q.requires_approval,
+                   pa.status
+            FROM questions q
+            JOIN users u ON u.id = q.user_id
+            LEFT JOIN pending_approvals pa ON pa.content_type = 'question' AND pa.content_id = q.id
+            WHERE q.id = ?
+            """,
+            (current_user_id, current_user_id, question_id),
+        )
+        row = await cursor.fetchone()
+        question = _row_to_question(row)
+        if question is None:
+            return None
+        if question["requires_approval"] and question["user_id"] != current_user_id:
+            return None
+    except Exception:
+        cursor = await db.execute(
+            """
+            SELECT q.id, q.user_id, q.title, q.description, q.type, q.correct_answer, q.difficulty,
+                   q.explanation, q.is_public, q.is_flagged, q.likes_count, q.created_at, q.updated_at,
+                   u.name,
+                   EXISTS(SELECT 1 FROM question_likes l WHERE l.user_id = ? AND l.question_id = q.id) AS liked,
+                   EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = ? AND b.question_id = q.id) AS bookmarked,
+                   q.image_url, q.media_url, q.attachment_url
+            FROM questions q
+            JOIN users u ON u.id = q.user_id
+            WHERE q.id = ?
+            """,
+            (current_user_id, current_user_id, question_id),
+        )
+        row = await cursor.fetchone()
+        question = _row_to_question(row)
+        if question is None:
+            return None
+        # Legacy DB: treat as approved and allow owners/admins to access.
+        question["requires_approval"] = False
     question["tags"] = await _get_tags(db, question_id)
     question["options"] = await _get_options(db, question_id)
     return question
@@ -129,24 +212,48 @@ async def get_question_by_id(db, question_id: int, current_user_id: int | None =
 async def list_questions(db, page: int = 1, limit: int = 20, only_public: bool = True, current_user_id: int | None = None) -> list[dict]:
     current_user_id = current_user_id if current_user_id is not None else -1
     offset = (page - 1) * limit
-    query = """
-        SELECT q.id, q.user_id, q.title, q.description, q.type, q.correct_answer, q.difficulty,
-               q.explanation, q.is_public, q.is_flagged, q.likes_count, q.created_at, q.updated_at,
-               u.name,
-               EXISTS(SELECT 1 FROM question_likes l WHERE l.user_id = ? AND l.question_id = q.id) AS liked,
-               EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = ? AND b.question_id = q.id) AS bookmarked,
-               q.image_url, q.media_url, q.attachment_url
-        FROM questions q
-        JOIN users u ON u.id = q.user_id
-    """
-    params: list = [current_user_id, current_user_id]
-    if only_public:
-        query += " WHERE q.is_public = 1 AND q.is_flagged = 0"
-    query += " ORDER BY q.created_at DESC LIMIT ? OFFSET ?"
-    params.extend([limit, offset])
-    cursor = await db.execute(query, params)
-    rows = await cursor.fetchall()
-    questions = [_row_to_question(row) for row in rows]
+    # Try to SELECT including approval fields; if the DB schema doesn't have
+    # those columns/tables yet, fall back to the legacy SELECT.
+    try:
+        query = """
+            SELECT q.id, q.user_id, q.title, q.description, q.type, q.correct_answer, q.difficulty,
+                   q.explanation, q.is_public, q.is_flagged, q.likes_count, q.created_at, q.updated_at,
+                   u.name,
+                   EXISTS(SELECT 1 FROM question_likes l WHERE l.user_id = ? AND l.question_id = q.id) AS liked,
+                   EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = ? AND b.question_id = q.id) AS bookmarked,
+                   q.image_url, q.media_url, q.attachment_url, q.requires_approval,
+                   pa.status
+            FROM questions q
+            JOIN users u ON u.id = q.user_id
+            LEFT JOIN pending_approvals pa ON pa.content_type = 'question' AND pa.content_id = q.id
+        """
+        params: list = [current_user_id, current_user_id]
+        if only_public:
+            query += " WHERE q.is_public = 1 AND q.is_flagged = 0 AND q.requires_approval = 0"
+        query += " ORDER BY q.created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        cursor = await db.execute(query, params)
+        rows = await cursor.fetchall()
+        questions = [_row_to_question(row) for row in rows]
+    except Exception:
+        query = """
+            SELECT q.id, q.user_id, q.title, q.description, q.type, q.correct_answer, q.difficulty,
+                   q.explanation, q.is_public, q.is_flagged, q.likes_count, q.created_at, q.updated_at,
+                   u.name,
+                   EXISTS(SELECT 1 FROM question_likes l WHERE l.user_id = ? AND l.question_id = q.id) AS liked,
+                   EXISTS(SELECT 1 FROM bookmarks b WHERE b.user_id = ? AND b.question_id = q.id) AS bookmarked,
+                   q.image_url, q.media_url, q.attachment_url
+            FROM questions q
+            JOIN users u ON u.id = q.user_id
+        """
+        params: list = [current_user_id, current_user_id]
+        if only_public:
+            query += " WHERE q.is_public = 1 AND q.is_flagged = 0"
+        query += " ORDER BY q.created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        cursor = await db.execute(query, params)
+        rows = await cursor.fetchall()
+        questions = [_row_to_question(row) for row in rows]
     for question in questions:
         question["tags"] = await _get_tags(db, question["id"])
         question["options"] = await _get_options(db, question["id"])
@@ -231,6 +338,7 @@ async def update_question(
 
 async def delete_question(db, question_id: int) -> None:
     await db.execute("DELETE FROM questions WHERE id = ?", (question_id,))
+    await db.execute("DELETE FROM pending_approvals WHERE content_type = 'question' AND content_id = ?", (question_id,))
     await db.commit()
 
 
