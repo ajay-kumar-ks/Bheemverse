@@ -8,9 +8,9 @@ from pathlib import Path
 import asyncpg
 
 ROOT = Path(__file__).resolve().parent
-SQLITE_DB_DEFAULT = ROOT / 'qera' / 'database' / 'qera.db'
-SCHEMA_PATH = ROOT / 'qera' / 'database' / 'schema_postgres.sql'
-MIGRATIONS_DIR = ROOT / 'qera' / 'database' / 'migrations'
+SQLITE_DB_DEFAULT = ROOT / 'qera' / 'backend' / 'database_files' / 'qera.db'
+SCHEMA_PATH = ROOT / 'qera' / 'backend' / 'database_files' / 'schema_postgres.sql'
+MIGRATIONS_DIR = ROOT / 'qera' / 'backend' / 'database_files' / 'migrations'
 SKIP_TABLES = {
     '_migrations',
     'sqlite_sequence',
