@@ -1,27 +1,44 @@
-import sqlite3
+import argparse
 import asyncio
+import os
+import re
+import sqlite3
 from pathlib import Path
 
 import asyncpg
 
-SQLITE_DB = Path('qera/database/qera.db')
-PG_URL = 'postgresql://neondb_owner:npg_EF9LOigIS5qm@ep-sweet-mountain-apbqij2a-pooler.c-7.us-east-1.aws.neon.tech/neondb?channel_binding=require&sslmode=require'
-
-COPY_TABLES = [
+ROOT = Path(__file__).resolve().parent
+SQLITE_DB_DEFAULT = ROOT / 'qera' / 'database' / 'qera.db'
+SCHEMA_PATH = ROOT / 'qera' / 'database' / 'schema_postgres.sql'
+MIGRATIONS_DIR = ROOT / 'qera' / 'database' / 'migrations'
+SKIP_TABLES = {
+    '_migrations',
+    'sqlite_sequence',
+}
+TABLE_ORDER = [
     'users',
     'tags',
     'questions',
     'question_options',
+    'question_tags',
     'exams',
+    'exam_questions',
     'exam_attempts',
+    'leaderboard',
+    'comments',
+    'comment_votes',
     'question_likes',
     'bookmarks',
-    'question_tags',
-    'exam_questions',
-    'comments',
     'notifications',
-    'leaderboard',
+    'badges',
+    'pending_approvals',
+    'user_badges',
 ]
+
+
+def get_sqlite_tables(conn):
+    cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+    return [row[0] for row in cursor.fetchall()]
 
 
 def get_sqlite_columns(conn, table_name):
@@ -54,12 +71,62 @@ async def set_sequence(conn, table_name):
         print(f'Updated sequence for {table_name} to {max_id}')
 
 
+def translate_postgres_sql(sql: str) -> str:
+    original_sql = sql
+    sql = re.sub(r"\bINSERT\s+OR\s+IGNORE\s+INTO\b", "INSERT INTO", sql, flags=re.I)
+    if re.search(r"\bINSERT\s+OR\s+IGNORE\s+INTO\b", original_sql, flags=re.I):
+        sql = sql.rstrip().rstrip(";")
+        if "ON CONFLICT" not in sql.upper():
+            sql += " ON CONFLICT DO NOTHING"
+
+    sql = re.sub(r"datetime\(\s*'now'\s*\)", "CURRENT_TIMESTAMP::text", sql, flags=re.I)
+    sql = re.sub(r"\bDATETIME\b", "TEXT", sql, flags=re.I)
+    sql = re.sub(r"\bINTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT\b", "SERIAL PRIMARY KEY", sql, flags=re.I)
+    sql = re.sub(r"\bAUTOINCREMENT\b", "", sql, flags=re.I)
+    return sql
+
+
+async def execute_sql_file(conn, path: Path) -> None:
+    sql = path.read_text(encoding='utf-8')
+    sql = translate_postgres_sql(sql)
+    statements = [stmt.strip() for stmt in sql.split(';') if stmt.strip()]
+    for statement in statements:
+        try:
+            await conn.execute(statement)
+        except asyncpg.PostgresError as exc:
+            lower = str(exc).lower()
+            if any(sub in lower for sub in [
+                'duplicate column',
+                'already exists',
+                'duplicate table',
+                'duplicate index',
+                'relation "_migrations" already exists',
+            ]):
+                continue
+            raise
+
+
+async def init_postgres_schema(pg_conn):
+    if not SCHEMA_PATH.exists():
+        raise FileNotFoundError(f'Postgres schema file not found: {SCHEMA_PATH}')
+    print(f'Creating schema from {SCHEMA_PATH}')
+    await execute_sql_file(pg_conn, SCHEMA_PATH)
+
+    migration_paths = sorted(MIGRATIONS_DIR.glob('*.sql'))
+    if migration_paths:
+        print('Applying migration files:')
+        for path in migration_paths:
+            print(f'  - {path.name}')
+            await execute_sql_file(pg_conn, path)
+
+
 async def migrate_table(sqlite_conn, pg_conn, table_name):
     sqlite_cols = get_sqlite_columns(sqlite_conn, table_name)
     pg_cols = await get_pg_columns(pg_conn, table_name)
     copy_cols = [col for col in pg_cols if col in sqlite_cols]
     if not copy_cols:
-        raise RuntimeError(f'No common columns found for {table_name}')
+        print(f'Skipping {table_name}: no shared columns')
+        return
 
     quoted_cols = [f'"{c}"' for c in copy_cols]
     src_rows = sqlite_conn.execute(
@@ -74,30 +141,62 @@ async def migrate_table(sqlite_conn, pg_conn, table_name):
         if dest_count == len(src_rows):
             print(f'Skipping {table_name}: target already contains {dest_count} rows')
             return
-        raise RuntimeError(f'Target table {table_name} is not empty: {dest_count} rows')
+        print(f'Warning: target table {table_name} already contains {dest_count} rows; inserting missing rows only')
 
     placeholders = ', '.join(f'${i+1}' for i in range(len(copy_cols)))
-    insert_sql = f'INSERT INTO "{table_name}" ({", ".join(quoted_cols)}) VALUES ({placeholders}) ON CONFLICT DO NOTHING'
+    insert_sql = (
+        f'INSERT INTO "{table_name}" ({", ".join(quoted_cols)}) VALUES ({placeholders}) '
+        'ON CONFLICT DO NOTHING'
+    )
     values = [tuple(row) for row in src_rows]
 
     async with pg_conn.transaction():
         for row in values:
             await pg_conn.execute(insert_sql, *row)
-    print(f'Copied {len(values)} rows into {table_name}')
 
+    print(f'Copied {len(values)} rows into {table_name}')
     if 'id' in copy_cols:
         await set_sequence(pg_conn, table_name)
 
 
 async def main():
-    if not SQLITE_DB.exists():
-        raise FileNotFoundError(f'SQLite DB not found at {SQLITE_DB}')
+    parser = argparse.ArgumentParser(
+        description='Migrate local SQLite data into a PostgreSQL database.',
+    )
+    parser.add_argument(
+        '--sqlite',
+        default=str(SQLITE_DB_DEFAULT),
+        help='Path to local SQLite database file.',
+    )
+    parser.add_argument(
+        '--postgres',
+        default=os.getenv('DATABASE_URL'),
+        help='PostgreSQL connection DSN. Defaults to DATABASE_URL environment variable.',
+    )
+    args = parser.parse_args()
 
-    sqlite_conn = sqlite3.connect(SQLITE_DB)
+    if not args.postgres:
+        raise ValueError('PostgreSQL URL is required. Set DATABASE_URL or pass --postgres.')
+
+    sqlite_db_path = Path(args.sqlite)
+    if not sqlite_db_path.exists():
+        raise FileNotFoundError(f'SQLite DB not found at {sqlite_db_path}')
+
+    sqlite_conn = sqlite3.connect(sqlite_db_path)
     try:
-        pg_conn = await asyncpg.connect(PG_URL)
+        pg_conn = await asyncpg.connect(args.postgres)
         try:
-            for table in COPY_TABLES:
+            await init_postgres_schema(pg_conn)
+            sqlite_tables = [
+                table
+                for table in get_sqlite_tables(sqlite_conn)
+                if table not in SKIP_TABLES and not table.startswith('questions_fts')
+            ]
+            ordered_tables = [table for table in TABLE_ORDER if table in sqlite_tables]
+            remaining_tables = [table for table in sqlite_tables if table not in ordered_tables]
+            tables = ordered_tables + remaining_tables
+            print('Tables to copy:', tables)
+            for table in tables:
                 await migrate_table(sqlite_conn, pg_conn, table)
             print('Data migration completed successfully.')
         finally:
