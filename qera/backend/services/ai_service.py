@@ -54,63 +54,72 @@ GENERATION_CONFIG = {
 
 def _call_model(prompt: str, generation_config: dict | None = None) -> dict[str, Any] | None:
     """
-    Call Gemini synchronously, rotating through MODEL_CANDIDATES and API keys.
-    Tries each model in order; skips to next model on 429/quota errors.
+    Call Gemini synchronously, rotating through all API keys × all MODEL_CANDIDATES.
+
+    Strategy: try every (key, model) combination until one succeeds.
+    On 429 — mark that key as failed for this model, try next key with same model.
+    On 403 — key is invalid entirely, skip it for all models.
     NOTE: Always call via _call_model_async from async code.
     """
-    key = get_api_key_manager().get_key()
-    if key is None:
+    manager = get_api_key_manager()
+    cfg = generation_config or GENERATION_CONFIG
+
+    # Collect all available keys upfront
+    all_keys = manager.active_keys
+    if not all_keys:
         logger.warning("No Google AI API keys configured - AI features disabled.")
         return None
 
-    cfg = generation_config or GENERATION_CONFIG
-
     for model_name in MODEL_CANDIDATES:
-        for attempt in range(2):
-            try:
-                genai.configure(api_key=key)
-                model = genai.GenerativeModel(
-                    model_name=model_name,
-                    safety_settings=SAFETY_SETTINGS,
-                    generation_config=cfg,
-                )
-                response = model.generate_content(prompt)
-                if not response.candidates:
-                    logger.warning("Gemini (%s) returned no candidates.", model_name)
-                    break  # try next model
+        # Try every key for this model
+        for key in all_keys:
+            # Skip if this key is currently in cooldown
+            if manager.get_key() is None:
+                break  # all keys exhausted
 
-                text = response.text or ""
-                text = re.sub(r"^```(?:json)?\s*", "", text.strip())
-                text = re.sub(r"\s*```$", "", text)
-                return json.loads(text)
+            for attempt in range(2):
+                try:
+                    genai.configure(api_key=key)
+                    model = genai.GenerativeModel(
+                        model_name=model_name,
+                        safety_settings=SAFETY_SETTINGS,
+                        generation_config=cfg,
+                    )
+                    response = model.generate_content(prompt)
+                    if not response.candidates:
+                        logger.warning("Gemini (%s) returned no candidates.", model_name)
+                        break  # try next key
 
-            except google_exceptions.ResourceExhausted as exc:
-                logger.warning("Model %s rate-limited (429): %s", model_name, str(exc)[:120])
-                if attempt == 0:
-                    continue  # retry same model once
-                break  # quota exhausted for this model, try next
+                    text = response.text or ""
+                    text = re.sub(r"^```(?:json)?\s*", "", text.strip())
+                    text = re.sub(r"\s*```$", "", text)
+                    result = json.loads(text)
+                    manager.mark_succeeded(key)
+                    return result
 
-            except google_exceptions.PermissionDenied as exc:
-                logger.warning("API key rejected (403): %s", str(exc)[:120])
-                get_api_key_manager().mark_failed(key)
-                key = get_api_key_manager().get_key()
-                if key is None:
-                    return None
-                continue
+                except google_exceptions.ResourceExhausted as exc:
+                    logger.warning("Key %.12s... / Model %s rate-limited (429)", key, model_name)
+                    manager.mark_failed(key)
+                    break  # try next key for same model
 
-            except (json.JSONDecodeError, ValueError) as exc:
-                logger.warning("Gemini (%s) non-JSON response: %s", model_name, exc)
-                if attempt == 0:
-                    continue
-                break
+                except google_exceptions.PermissionDenied as exc:
+                    logger.warning("Key %.12s... rejected (403): %s", key, str(exc)[:80])
+                    manager.mark_failed(key)
+                    break  # try next key
 
-            except Exception as exc:
-                logger.exception("Gemini (%s) unexpected error: %s", model_name, exc)
-                if attempt == 0:
-                    continue
-                break
+                except (json.JSONDecodeError, ValueError) as exc:
+                    logger.warning("Gemini (%s) non-JSON response: %s", model_name, exc)
+                    if attempt == 0:
+                        continue
+                    break
 
-    logger.error("All model candidates exhausted - no response.")
+                except Exception as exc:
+                    logger.warning("Gemini (%s) key %.12s... error: %s", model_name, key, str(exc)[:120])
+                    if attempt == 0:
+                        continue
+                    break
+
+    logger.error("All key × model combinations exhausted - no response.")
     return None
 
 
