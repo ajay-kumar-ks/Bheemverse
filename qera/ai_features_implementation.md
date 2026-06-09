@@ -137,7 +137,7 @@ New endpoints to generate questions, exams, and explanations using Gemini.
 - **Fallback:** Return error + let admin create manually.
 - **Frontend:** Add "AI Generate" tab in `CreateExamPage.jsx`.
 
-### 2.3 — AI Answer Explanation
+### 2.3 — AI Answer Explanation ✅
 
 **Endpoint:** `POST /api/v1/ai/explain`
 **Who uses it:** Students reviewing exam results or browsing questions.

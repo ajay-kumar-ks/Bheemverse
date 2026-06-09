@@ -397,3 +397,44 @@ async def reload_api_keys():
         "status": "reloaded",
         "keys_configured": len(key_manager.active_keys),
     }
+
+
+# ---------------------------------------------------------------------------
+# Phase 2.3 — AI Answer Explanation
+# ---------------------------------------------------------------------------
+
+@router.post("/explain", response_model=ExplainResponse)
+async def explain_answer(
+    body: ExplainRequest,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Explain why an answer is correct or incorrect for a given question.
+    Available to all logged-in users.
+    """
+    db = request.app.state.db
+
+    # Fetch the question from DB to get title, description and correct_answer
+    try:
+        from backend.models.question_model import get_question_by_id
+    except ImportError:
+        from models.question_model import get_question_by_id
+
+    question = await get_question_by_id(db, body.question_id, current_user_id=current_user["id"])
+    if question is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Question not found")
+
+    result = await ai_service.explain_answer(
+        question_title=question["title"],
+        question_description=question.get("description"),
+        correct_answer=question.get("correct_answer") or "",
+        user_answer=body.user_answer,
+        is_correct=body.is_correct,
+    )
+
+    return ExplainResponse(
+        explanation=result["explanation"],
+        key_concept=result.get("key_concept"),
+        suggestion=result.get("suggestion"),
+    )

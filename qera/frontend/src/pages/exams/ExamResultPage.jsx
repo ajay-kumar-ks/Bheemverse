@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import api from '../../services/api'
+import AIExplanation from '../../components/ai/AIExplanation'
 
 function formatTime(seconds) {
   const mins = Math.floor(seconds / 60)
@@ -150,6 +151,16 @@ export default function ExamResultPage() {
                     })}
                   </div>
                 ) : null}
+
+                {/* AI Explanation — shown for all questions, prominent for wrong answers */}
+                {question && (
+                  <AIExplanation
+                    questionId={question.id}
+                    userAnswer={answer || null}
+                    isCorrect={correct}
+                    compact={true}
+                  />
+                )}
               </article>
             )
           })}
