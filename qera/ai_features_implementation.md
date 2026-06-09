@@ -233,7 +233,7 @@ Endpoints that use user's history to give smart recommendations and study plans.
 
 ## Phase 4: Conversational AI Tutor (Future)
 
-### 4.1 — Chat with AI Tutor
+### 4.1 — Chat with AI Tutor ✅
 
 **Endpoint:** `POST /api/v1/ai/chat`
 **Who uses it:** Any logged-in user.
